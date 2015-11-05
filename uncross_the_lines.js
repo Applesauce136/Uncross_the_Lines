@@ -24,73 +24,116 @@ var cursorX;
 var cursorY;
 
 // this is for box selection
-var box;
-var boxStartX;
-var boxStartY;
 var mouseDown;
+
+// all the circles
+var circles = draw.set();
 
 // the currently selected circles
 var selection = draw.set();
 
+// are we on a circle?
+var onCircle = false;
 
+// is shift being held?
+var shift = false;
+
+
+
+document.onkeydown = function (e) {
+    
+    // get the key
+    var key = e.which || e.keyCode;
+
+    // is it shift?
+    if (key === 16) {
+        shift = true;
+    }
+}
+
+document.onkeyup = function (e) {
+
+    // get the key
+    var key = e.which || e.keyCode;
+
+    //is it shift?
+    if (key === 16) {
+        shift = false;
+    }
+}
 
 document.onmousedown = function (e) {
     
     mouseDown = true;
 
-    //empty selection
-    selection.each(function (i) {
-        this.fill("black");
+    onCircle = false;
+    // check if circle is selected
+    circles.each(function (i) {
+        if (this.inside(cursorX, cursorY)) {
+            onCircle = true;
+            if (!selection.has(this)) {
+                selection.add(this);
+                this.fill("red");
+            }            
+        }
     });
-    selection.clear();
 
-    boxStartX = cursorX;
-    boxStartY = cursorY;
+    // empty selection
+    if (!shift && !onCircle) {
+        selection.each(function (i) {
+            this.fill("black");
+        });
+        selection.clear();
+    }
 }
 
 document.onmousemove = function (e) {
 
-    // delete the old box
-    if (box) {
-        box.remove();
-    }
-
+    // save old position
+    var cursorXprev = cursorX;
+    var cursorYprev = cursorY;
+    
     // update cursor position
     cursorX = e.pageX - offsetX;
     cursorY = e.pageY - offsetY;
 
-    // draw box!
-    if (mouseDown) {
+    // move selection
+    if (mouseDown && onCircle) {
         
-        box = draw
-        // box size
-            .rect(Math.abs(boxStartX - cursorX),
-                  Math.abs(boxStartY - cursorY))
-        // box position
-            .move(Math.min(boxStartX, cursorX),
-                  Math.min(boxStartY, cursorY))
-        // SC2 style baby
-            .fill("green")
-            .opacity(.3);
-    };
+        // for each selected circle...
+        selection.each(function (i) {
+            /* MEH
+            // if the mouse is on it, move with cursor
+            if (mouseOn.has(this)) {
+            this.move(cursorX, cursorY);
+            }
+
+            // otherwise, move akin to cursor
+            else {
+            MEH */
+            this.dmove(cursorX - cursorXprev,
+                       cursorY - cursorYprev);
+            /* MEH } MEH */
+        });
+    }
 }
 
 document.onmouseup = function (e) {
-    //TODO: add circles to selection
+
     mouseDown = false;
+
 }
 
 // POPULATE SPACE
 var numCircles = 10;
 for (var i = 0; i < numCircles; i++) {
+    
     // radius
-    draw.circle(10)
+    var circle = draw.circle(10)
+    
     // random position
         .move(width * Math.random(),
-              height * Math.random())
-    // if clicked, add to selection
-        .click(function () {
-            selection.add(this);
-            this.fill("red");
-        });
+              height * Math.random());
+
+    circles.add(circle);
 }
