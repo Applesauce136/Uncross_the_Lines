@@ -216,6 +216,7 @@ document.onmousemove = function (e) {
 
 document.onmouseup = function (e) {
 
+
     if (mouseOn) {
         if (!shift && !moved) {
             empty();
