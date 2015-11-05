@@ -57,6 +57,10 @@ var mouseOn = false;
 // have we moved since clicking?
 var moved = false;
 
+// was the last addition recent?
+// (that is, on the last mousedown?)
+var recent = false;
+
 // ================================
 // ================================================================
 
@@ -204,8 +208,12 @@ document.onmousedown = function (e) {
     mouseDown = true;
     updateMouseOn();
     
-    if (mouseOn) {
+    if (mouseOn && !selected(mouseOn)) {
+        if (!shift) {
+            empty();
+        };
         add(mouseOn);
+        recent = true;
     }
 
     boxStartX = cursorX;
@@ -232,11 +240,6 @@ document.onmousemove = function (e) {
         if (!shift && mouseOn) {
 
             moved = true;
-            
-            if (!selected(mouseOn)) {
-                empty();
-                add(mouseOn);
-            }
 
             // for each selected circle...
             selection.each(function (i) {
@@ -278,11 +281,10 @@ document.onmouseup = function (e) {
         box.remove();
     }
     else if (mouseOn) {
-        console.log(moved);
         if (!shift && !moved) {
             empty();
         }
-        if (shift && selected(mouseOn) && !moved) {
+        if (shift && selected(mouseOn) && !moved && !recent) {
             remove(mouseOn);
         }
         else {
@@ -296,6 +298,7 @@ document.onmouseup = function (e) {
     mouseOn = false;
     mouseDown = false;
     moved = false;
+    recent = false;
 
 }
 // ================================
