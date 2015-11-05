@@ -90,7 +90,7 @@ var selected = function(circle) {
 var add = function(circle) {
     if (!selected(circle)) {
         selection.add(circle);
-        circle.fill("red");
+        circle.fill("red").front();
         return true;
     }
     return false;
@@ -119,13 +119,28 @@ var empty = function () {
     return selection.clear();
 }
 
+var intersect = function (shape1, shape2) {
+    var b1 = shape1.bbox();
+    var b2 = shape2.bbox();
+    
+    return (shape1.inside(b2.x , b2.y) ||
+            shape1.inside(b2.x , b2.y2) ||
+            shape1.inside(b2.x2, b2.y) ||
+            shape1.inside(b2.x2, b2.y2) ||
+
+            shape2.inside(b1.x , b1.y) ||
+            shape2.inside(b1.x , b1.y2) ||
+            shape2.inside(b1.x2, b1.y) ||
+            shape2.inside(b1.x2, b1.y2)
+    );
+}
+
 // random number between min and max
 var makeRandom = function (min, max) {
     return min + (max - min) * Math.random();
 }
 
 var debug = function() {
-//     console.clear();
     console.log("cursorX:   " + cursorX + "\n" +
                 "cursorY:   " + cursorY + "\n" +
                 "shift:     " + shift + "\n" +
@@ -133,6 +148,7 @@ var debug = function() {
                 "moved:     " + moved + "\n" +
                 "recent:    " + recent + "\n" +
                 "mouseOn:   " + mouseOn + "\n" +
+                "box:       " + box + "\n" +
                 "");
 }
 
@@ -187,6 +203,10 @@ document.onmousedown = function (e) {
 
     mouseDown = true;
     updateMouseOn();
+    
+    if (mouseOn) {
+        add(mouseOn);
+    }
 
     boxStartX = cursorX;
     boxStartY = cursorY;
@@ -208,45 +228,57 @@ document.onmousemove = function (e) {
     cursorX = e.pageX - offsetX;
     cursorY = e.pageY - offsetY;
 
-    // move selection
-    if (!shift && mouseDown && mouseOn) {
+    if (mouseDown) {
+        if (!shift && mouseOn) {
 
-        moved = true;
-        
-        if (!selected(mouseOn)) {
-            empty();
-            add(mouseOn);
+            moved = true;
+            
+            if (!selected(mouseOn)) {
+                empty();
+                add(mouseOn);
+            }
+
+            // for each selected circle...
+            selection.each(function (i) {
+                moveCircle(this,
+                           cursorX - cursorXprev,
+                           cursorY - cursorYprev);
+            });
         }
-
-        // for each selected circle...
-        selection.each(function (i) {
-            moveCircle(this,
-                       cursorX - cursorXprev,
-                       cursorY - cursorYprev);
-        });
+        else if (!mouseOn &&
+                Math.abs(boxStartX - cursorX) > radius / 4 &&
+                 Math.abs(boxStartY - cursorY) > radius / 4
+                ) {
+            // draw box
+            box = draw
+            // box size
+                .rect(Math.abs(boxStartX - cursorX),
+                      Math.abs(boxStartY - cursorY))
+            // box position
+                .move(Math.min(boxStartX, cursorX),
+                      Math.min(boxStartY, cursorY))
+            // SC2 style baby
+                .fill("green")
+                .opacity(.3);
+        }
     }
-    
-    box = draw
-    // box size
-        .rect(Math.abs(boxStartX - cursorX),
-              Math.abs(boxStartY - cursorY))
-    // box position
-        .move(Math.min(boxStartX, cursorX),
-              Math.min(boxStartY, cursorY))
-    // SC2 style baby
-        .fill("green")
-        .opacity(.3);
-
 }
 
 document.onmouseup = function (e) {
 
-    // delete the old box
     if (box) {
+        if (!shift && !moved) {
+            empty();
+        }
+        circles.each(function (i) {
+            if (intersect(this, box)) {
+                add(this);
+            }
+        });
         box.remove();
     }
-
-    if (mouseOn) {
+    else if (mouseOn) {
+        console.log(moved);
         if (!shift && !moved) {
             empty();
         }
