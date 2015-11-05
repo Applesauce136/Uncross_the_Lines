@@ -31,6 +31,11 @@ var circles = draw.set();
 // the currently selected circles
 var selection = draw.set();
 
+// box selection
+var box;
+var boxStartX;
+var boxStartY;
+
 // ================================
 
 // STATE VARIABLES
@@ -183,9 +188,17 @@ document.onmousedown = function (e) {
     mouseDown = true;
     updateMouseOn();
 
+    boxStartX = cursorX;
+    boxStartY = cursorY;
+
 }
 
 document.onmousemove = function (e) {
+
+    // delete the old box
+    if (box) {
+        box.remove();
+    }
 
     // save old position
     var cursorXprev = cursorX;
@@ -212,10 +225,26 @@ document.onmousemove = function (e) {
                        cursorY - cursorYprev);
         });
     }
+    
+    box = draw
+    // box size
+        .rect(Math.abs(boxStartX - cursorX),
+              Math.abs(boxStartY - cursorY))
+    // box position
+        .move(Math.min(boxStartX, cursorX),
+              Math.min(boxStartY, cursorY))
+    // SC2 style baby
+        .fill("green")
+        .opacity(.3);
+
 }
 
 document.onmouseup = function (e) {
 
+    // delete the old box
+    if (box) {
+        box.remove();
+    }
 
     if (mouseOn) {
         if (!shift && !moved) {
