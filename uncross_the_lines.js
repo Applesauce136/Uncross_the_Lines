@@ -7,7 +7,8 @@
 // --------------------------------
 
 // window boundaries
-// thanks to http://stackoverflow.com/questions/3437786/get-the-size-of-the-screen-current-web-page-and-browser-window
+// thanks to:
+// http://stackoverflow.com/questions/3437786/get-the-size-of-the-screen-current-web-page-and-browser-window
 var w = window;
 var d = document;
 var e = d.documentElement;
@@ -20,9 +21,9 @@ var boundary = 20;
 // dimensions
 var width = Math.min(w.innerWidth, e.clientWidth, g.clientWidth) - boundary * 3;
 var height = Math.min(w.innerHeight, e.clientHeight, g.clientHeight) - boundary * 3;
-console.log("width:  " + width + "\n" +
-            "height: " + height + "\n" +
-           "");
+
+// will contain the background box
+var background;
 
 // number of circles
 var numCircles = 30;
@@ -68,11 +69,11 @@ var box;
 var boxStartX;
 var boxStartY;
 
-// is the mouse held down?
-var mouseDown = false;
-
 // is shift held down?
 var shift = false;
+
+// is the mouse held down?
+var mouseDown = false;
 
 // are we on a circle?
 var mouseOn = false;
@@ -99,6 +100,7 @@ var makeCircle = function(x, y) {
         .center(x, y)
         .front();
 
+    // the circles attached to this one
     circle.sets = [];
 
     circles.add(circle);
@@ -108,7 +110,8 @@ var makeCircle = function(x, y) {
 
 // connect two circles
 var connect = function (c1, c2) {
-    
+
+    // set containing two circles and a line
     var circlePair = draw.set()
         .add(c1)
         .add(c2)
@@ -116,8 +119,11 @@ var connect = function (c1, c2) {
              .stroke("#555555")
              .after(c1)
              .after(c2));
+
+    // render the line
     drawLine(circlePair);
 
+    // tell the circles who their parents are
     // circleSet.push(circlePair);
     c1.sets.push(circlePair);
     c2.sets.push(circlePair);
@@ -127,14 +133,18 @@ var connect = function (c1, c2) {
 // update circle under mouse
 var updateMouseOn = function () {
     mouseOn = false;
+
+    // iterate through circles to see if any are clicked on
     circles.each(function (i) {
         if (this.inside(cursorX, cursorY)) {
             mouseOn = this;
+            return mouseOn;
         }
     });
     return mouseOn;
 }
 
+// if the circle is in our selection
 var selected = function(circle) {
     return selection.has(circle);
 }
@@ -161,16 +171,27 @@ var remove = function(circle) {
 
 // move circle (relative to circle itself)
 var move = function(circle, dx, dy) {
+
     var nx = circle.cx() + dx;
     var ny = circle.cy() + dy;
-    if (boundary < nx && nx < width - boundary &&
-        boundary < ny && ny < height - boundary) {
+
+    // make sure the new coordinates are in bounds
+    if (inBounds(nx, ny)) {
         circle.center(nx, ny);
     }
+
+    // update the circle's neighbors
     for (var i = 0; i < circle.sets.length; i++) {
         drawLine(circle.sets[i]);
     }
+
     return circle;
+}
+
+// check if a point is in our boundary
+var inBounds = function (x, y) {
+    return (boundary < x && x < width - boundary &&
+            boundary < y && y < height - boundary)
 }
 
 // clear the selection
@@ -181,9 +202,13 @@ var empty = function () {
     return selection.clear();
 }
 
+// draw a box based on the current mouse state
 var drawBox = function () {
+
+    // if the box is big enough... 
     if (Math.abs(boxStartX - cursorX) > diameter / 4 ||
         Math.abs(boxStartY - cursorY) > diameter / 4) {
+        // remove the old box
         if (box !== undefined) {
             box.remove();
         }
@@ -203,18 +228,24 @@ var drawBox = function () {
 }
 
 var drawLine = function(circlePair) {
+
+    // extract values
     var c1 = circlePair.get(0);
     var c2 = circlePair.get(1);
     var line = circlePair.get(2);
     
+    // update line
     line.plot(c1.cx(), c1.cy(),
               c2.cx(), c2.cy());
 }
 
-var intersect = function (shape1, shape2) {
+var bboxIntersect = function (shape1, shape2) {
+
+    // extract values
     var b1 = shape1.bbox();
     var b2 = shape2.bbox();
     
+    // check each corner
     return (shape1.inside(b2.x , b2.y) ||
             shape1.inside(b2.x , b2.y2) ||
             shape1.inside(b2.x2, b2.y) ||
@@ -266,7 +297,7 @@ for (var i = 0; i < circles.index(circles.last()); i++) {
 connect(circles.first(), circles.last());
 
 // draw background
-draw.rect(width, height).fill("#eeeeee").back();
+background = draw.rect(width, height).fill("#eeeeee").back();
 
 // ================================================================
 
@@ -303,17 +334,24 @@ document.onkeyup = function (e) {
 
 document.onmousedown = function (e) {
 
+    // update state
     mouseDown = true;
     updateMouseOn();
     
+    // if we're clicking on something new
     if (mouseOn && !selected(mouseOn)) {
+
+        // clear and add, or shift-add
         if (!shift) {
             empty();
         };
         add(mouseOn);
+
+        // for this loop, we've added the circle
         recent = true;
     }
 
+    // in case we're boxing
     boxStartX = cursorX;
     boxStartY = cursorY;
 
@@ -330,7 +368,9 @@ document.onmousemove = function (e) {
     cursorX = e.pageX - offsetX;
     cursorY = e.pageY - offsetY;
 
+    // if we're clicking on something...
     if (mouseDown) {
+        // moving condition
         if (!shift && mouseOn) {
 
             moved = true;
@@ -342,6 +382,7 @@ document.onmousemove = function (e) {
                      cursorY - cursorYprev);
             });
         }
+        // if we're not mousing over anything...
         else if (!mouseOn) {
             drawBox();
         }
@@ -352,33 +393,41 @@ document.onmousemove = function (e) {
 
 document.onmouseup = function (e) {
 
+    // if we made a box...
     if (boxed) {
+        // clear selection if we're not adding to it
         if (!shift && !moved) {
             empty();
         }
+        // add boxed circles to selection
         circles.each(function () {
-            if (intersect(this, box)) {
+            if (bboxIntersect(this, box)) {
                 add(this);
             }
         });
         box.remove();
     }
+    // if we clicked on something...
     else if (mouseOn) {
-        if (!shift && !moved && selection.index(selection.last()) >= 0) {
+        // if we didn't move and we're not shift-adding, clear the selection
+        if (!shift && !moved) {
             empty();
         }
-
+        // if we're shift-clicking something selected, remove it
         if (shift && selected(mouseOn) && !moved && !recent) {
             remove(mouseOn);
         }
+        // otherwise, add the thing we clicked on
         else {
             add(mouseOn);
         }
     }
+    // if not, we can clear the selection
     else {
         empty();
     }
 
+    // update state
     mouseOn = false;
     mouseDown = false;
     moved = false;
