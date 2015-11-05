@@ -111,7 +111,6 @@ var empty = function () {
     selection.each(function (i) {
         this.fill("black");
     });
-    console.log("~~~~~~~~~~~~~~~~~~~~~CLEARED~~~~~~~~~~~~~~~~~~~~~~~~~");
     return selection.clear();
 }
 
