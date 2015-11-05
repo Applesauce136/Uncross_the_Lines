@@ -6,19 +6,28 @@
 // CONSTANTS
 // --------------------------------
 
-// my div
-var canvas = document.getElementById("drawing");
-
-// the SVG object
+// dimensions
 var width = 300;
-var height = 300;
-var draw = SVG("drawing").size(width, height);
+var height = 800;
+
+// the minimum distance between a circle's starting position
+// and the boundary of the screen
+var boundary = 100;
 
 // number of circles
 var numCircles = 10;
 
 // radius of circles
 var radius = 30;
+
+// the probability that any two circles will be connected
+var threshold = .3;
+
+// my div
+var canvas = document.getElementById("drawing");
+
+// the SVG object
+var draw = SVG("drawing").size(width, height);
 
 // offset of SVG canvas, for mouse purposes
 var border = canvas.getBoundingClientRect();
@@ -28,13 +37,9 @@ var offsetY = border.top;
 // all the circles
 var circles = draw.set();
 
-// the currently selected circles
-var selection = draw.set();
-
-// box selection
-var box;
-var boxStartX;
-var boxStartY;
+// all the circle pairs
+// each element is a draw.set() containing two circles and a line
+var circleSet = [];
 
 // ================================
 
@@ -44,6 +49,14 @@ var boxStartY;
 // the cursor positions
 var cursorX;
 var cursorY;
+
+// the currently selected circles
+var selection = draw.set();
+
+// box selection
+var box;
+var boxStartX;
+var boxStartY;
 
 // is the mouse held down?
 var mouseDown = false;
@@ -70,7 +83,8 @@ var recent = false;
 // make a circle, and add it to the set of all circles
 var makeCircle = function(x, y) {
     var circle = draw.circle(radius)
-        .move(x, y);
+        .move(x, y)
+        .front();
     circles.add(circle);
     return circle;
 }
@@ -111,8 +125,10 @@ var remove = function(circle) {
 }
 
 // move circle (relative to circle itself)
-var moveCircle = function(circle, dx, dy) {
-    return circle.dmove(dx, dy);
+var move = function(circle, dx, dy) {
+    circle.dmove(dx, dy);
+    drawLines();
+    return circle;
 }
 
 // clear the selection
@@ -137,6 +153,23 @@ var drawBox = function () {
         // SC2 style baby
             .fill("green")
             .opacity(.3);
+    }
+}
+
+var drawLines = function() {
+    for (var i = 0; i < circleSet.length; i++) {
+        
+        var circlePair = circleSet[i];
+        
+        var c1 = circlePair.get(0);
+        var c2 = circlePair.get(1);
+        var line = circlePair.get(2);
+        
+        line.plot(c1.cx(), c1.cy(),
+                  c2.cx(), c2.cy())
+            .stroke("#555555")
+            .after(c1)
+            .after(c2);
     }
 }
 
@@ -180,9 +213,15 @@ var debug = function() {
 
 // populate space
 for (var i = 0; i < numCircles; i++) {
-    makeCircle(makeRandom(20, width - 20),
-               makeRandom(20, height - 20));
+    var circle = makeCircle(makeRandom(20, width - 20),
+                            makeRandom(20, height - 20));
+    circles.each(function () {
+        if (Math.random() < threshold) {
+            circleSet.push(draw.set().add(this).add(circle).add(draw.line(0, 0, 0, 0)));
+        }
+    });
 }
+drawLines();
 
 // draw background
 draw.rect(width, height).fill("#eeeeee").back();
@@ -236,6 +275,7 @@ document.onmousedown = function (e) {
     boxStartX = cursorX;
     boxStartY = cursorY;
 
+    // debug();
 }
 
 document.onmousemove = function (e) {
@@ -260,15 +300,17 @@ document.onmousemove = function (e) {
 
             // for each selected circle...
             selection.each(function (i) {
-                moveCircle(this,
-                           cursorX - cursorXprev,
-                           cursorY - cursorYprev);
+                move(this,
+                     cursorX - cursorXprev,
+                     cursorY - cursorYprev);
             });
         }
         else if (!mouseOn) {
             drawBox();
         }
     }
+
+    // debug();
 }
 
 document.onmouseup = function (e) {
@@ -285,7 +327,7 @@ document.onmouseup = function (e) {
         box.remove();
     }
     else if (mouseOn) {
-        if (!shift && !moved) {
+        if (!shift && !moved && selection.index(selection.last()) >= 0) {
             empty();
         }
         if (shift && selected(mouseOn) && !moved && !recent) {
@@ -295,7 +337,7 @@ document.onmouseup = function (e) {
             add(mouseOn);
         }
     }
-    else if (!shift) {
+    else {
         empty();
     }
 
@@ -304,6 +346,7 @@ document.onmouseup = function (e) {
     moved = false;
     recent = false;
 
+    // debug();
 }
 // ================================
 // ================================================================
