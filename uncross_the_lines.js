@@ -123,6 +123,23 @@ var empty = function () {
     return selection.clear();
 }
 
+var drawBox = function () {
+    if (Math.abs(boxStartX - cursorX) > radius / 4 ||
+       Math.abs(boxStartY - cursorY) > radius / 4) {
+        // draw box
+        box = draw
+        // box size
+            .rect(Math.abs(boxStartX - cursorX),
+                  Math.abs(boxStartY - cursorY))
+        // box position
+            .move(Math.min(boxStartX, cursorX),
+                  Math.min(boxStartY, cursorY))
+        // SC2 style baby
+            .fill("green")
+            .opacity(.3);
+    }
+}
+
 var intersect = function (shape1, shape2) {
     var b1 = shape1.bbox();
     var b2 = shape2.bbox();
@@ -248,21 +265,8 @@ document.onmousemove = function (e) {
                            cursorY - cursorYprev);
             });
         }
-        else if (!mouseOn &&
-                Math.abs(boxStartX - cursorX) > radius / 4 &&
-                 Math.abs(boxStartY - cursorY) > radius / 4
-                ) {
-            // draw box
-            box = draw
-            // box size
-                .rect(Math.abs(boxStartX - cursorX),
-                      Math.abs(boxStartY - cursorY))
-            // box position
-                .move(Math.min(boxStartX, cursorX),
-                      Math.min(boxStartY, cursorY))
-            // SC2 style baby
-                .fill("green")
-                .opacity(.3);
+        else if (!mouseOn) {
+            drawBox();
         }
     }
 }
