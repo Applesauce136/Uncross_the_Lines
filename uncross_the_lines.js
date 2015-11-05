@@ -1,30 +1,29 @@
 "use strict";
 
-// INIT STUFF
+// VALUES
+// ----------------------------------------------------------------
 
-//this is my div
+// CONSTANTS
+// --------------------------------
+
+// my div
 var canvas = document.getElementById("drawing");
 
-//make the SVG!
-var width = 300, height = 300;
+// the SVG object
+var width = 300;
+var height = 300;
 var draw = SVG("drawing").size(width, height);
 
-// this is the background
-draw.rect(width, height).fill("#eeeeee").back();
+// number of circles
+var numCircles = 10;
 
-// CURSOR THINGS
+// radius of circles
+var radius = 30;
 
 // offset of SVG canvas, for mouse purposes
 var border = canvas.getBoundingClientRect();
 var offsetX = border.left;
 var offsetY = border.top;
-
-// these have the cursor position
-var cursorX;
-var cursorY;
-
-// this is for box selection
-var mouseDown;
 
 // all the circles
 var circles = draw.set();
@@ -32,16 +31,130 @@ var circles = draw.set();
 // the currently selected circles
 var selection = draw.set();
 
-// are we on a circle?
-var onCircle = false;
+// ================================
 
-// is shift being held?
+// STATE VARIABLES
+// --------------------------------
+
+// the cursor positions
+var cursorX;
+var cursorY;
+
+// is the mouse held down?
+var mouseDown = false;
+
+// is shift held down?
 var shift = false;
 
+// are we on a circle?
+var mouseOn = false;
 
+// have we moved since clicking?
+var moved = false;
 
+// ================================
+// ================================================================
+
+// HELPER FUNCTIONS
+// ----------------------------------------------------------------
+
+// make a circle, and add it to the set of all circles
+var makeCircle = function(x, y) {
+    var circle = draw.circle(radius)
+        .move(x, y);
+    circles.add(circle);
+    return circle;
+}
+
+// update circle under mouse
+var updateMouseOn = function () {
+    mouseOn = false;
+    circles.each(function (i) {
+        if (this.inside(cursorX, cursorY)) {
+            mouseOn = this;
+        }
+    });
+    return mouseOn;
+}
+
+var selected = function(circle) {
+    return selection.has(circle);
+}
+
+// add circle to selection
+var add = function(circle) {
+    if (!selected(circle)) {
+        selection.add(circle);
+        circle.fill("red");
+        return true;
+    }
+    return false;
+}
+
+// remove circle from selection
+var remove = function(circle) {
+    if (selected(circle)) {
+        selection.remove(circle);
+        circle.fill("black");
+        return true;
+    }
+    return false;
+}
+
+// move circle (relative to circle itself)
+var moveCircle = function(circle, dx, dy) {
+    return circle.dmove(dx, dy);
+}
+
+// clear the selection
+var empty = function () {
+    selection.each(function (i) {
+        this.fill("black");
+    });
+    console.log("~~~~~~~~~~~~~~~~~~~~~CLEARED~~~~~~~~~~~~~~~~~~~~~~~~~");
+    return selection.clear();
+}
+
+// random number between min and max
+var makeRandom = function (min, max) {
+    return min + (max - min) * Math.random();
+}
+
+var debug = function() {
+//     console.clear();
+    console.log("cursorX:   " + cursorX + "\n" +
+                "cursorY:   " + cursorY + "\n" +
+                "shift:     " + shift + "\n" +
+                "mouseDown: " + mouseDown + "\n" +
+                "moved:     " + moved + "\n" +
+                "recent:    " + recent + "\n" +
+                "mouseOn:   " + mouseOn + "\n" +
+                "");
+}
+
+// ================================================================
+
+// INIT STUFF
+// ----------------------------------------------------------------
+
+// populate space
+for (var i = 0; i < numCircles; i++) {
+    makeCircle(makeRandom(20, width - 20),
+               makeRandom(20, height - 20));
+}
+
+// draw background
+draw.rect(width, height).fill("#eeeeee").back();
+
+// ================================================================
+
+// INPUT PROCESSING
+// ----------------------------------------------------------------
+
+// IS SHIFT HELD DOWN?
+// --------------------------------
 document.onkeydown = function (e) {
-    
+
     // get the key
     var key = e.which || e.keyCode;
 
@@ -61,30 +174,16 @@ document.onkeyup = function (e) {
         shift = false;
     }
 }
+// ================================
+
+// MOUSE PROCESSING THINGS
+// --------------------------------
 
 document.onmousedown = function (e) {
-    
+
     mouseDown = true;
+    updateMouseOn();
 
-    onCircle = false;
-    // check if circle is selected
-    circles.each(function (i) {
-        if (this.inside(cursorX, cursorY)) {
-            onCircle = true;
-            if (!selection.has(this)) {
-                selection.add(this);
-                this.fill("red");
-            }            
-        }
-    });
-
-    // empty selection
-    if (!shift && !onCircle) {
-        selection.each(function (i) {
-            this.fill("black");
-        });
-        selection.clear();
-    }
 }
 
 document.onmousemove = function (e) {
@@ -92,48 +191,51 @@ document.onmousemove = function (e) {
     // save old position
     var cursorXprev = cursorX;
     var cursorYprev = cursorY;
-    
+
     // update cursor position
     cursorX = e.pageX - offsetX;
     cursorY = e.pageY - offsetY;
 
     // move selection
-    if (mouseDown && onCircle) {
+    if (!shift && mouseDown && mouseOn) {
+
+        moved = true;
         
+        if (!selected(mouseOn)) {
+            empty();
+            add(mouseOn);
+        }
+
         // for each selected circle...
         selection.each(function (i) {
-            /* MEH
-            // if the mouse is on it, move with cursor
-            if (mouseOn.has(this)) {
-            this.move(cursorX, cursorY);
-            }
-
-            // otherwise, move akin to cursor
-            else {
-            MEH */
-            this.dmove(cursorX - cursorXprev,
+            moveCircle(this,
+                       cursorX - cursorXprev,
                        cursorY - cursorYprev);
-            /* MEH } MEH */
         });
     }
 }
 
 document.onmouseup = function (e) {
 
+    if (mouseOn) {
+        if (!shift && !moved) {
+            empty();
+        }
+        if (shift && selected(mouseOn) && !moved) {
+            remove(mouseOn);
+        }
+        else {
+            add(mouseOn);
+        }
+    }
+    else if (!shift) {
+        empty();
+    }
+
+    mouseOn = false;
     mouseDown = false;
+    moved = false;
 
 }
-
-// POPULATE SPACE
-var numCircles = 10;
-for (var i = 0; i < numCircles; i++) {
-    
-    // radius
-    var circle = draw.circle(10)
-    
-    // random position
-        .move(width * Math.random(),
-              height * Math.random());
-
-    circles.add(circle);
-}
+// ================================
+// ================================================================
