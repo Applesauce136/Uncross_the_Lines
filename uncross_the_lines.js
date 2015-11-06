@@ -30,7 +30,7 @@ var height = Math.min(w.innerHeight,
 var background;
 
 // number of circles
-var numCircles = 15;
+var numCircles = 20;
 
 // diameter of circles
 var diameter = 20;
@@ -401,6 +401,156 @@ var debug = function() {
 
 // ================================================================
 
+// INPUT PROCESSING
+// ----------------------------------------------------------------
+
+var setGameInput = function () {
+
+    // IS SHIFT HELD DOWN?
+    // --------------------------------
+    document.onkeydown = function (e) {
+
+        // get the key
+        var key = e.which || e.keyCode;
+
+        // is it shift?
+        if (key === 16) {
+            shift = true;
+        }
+    }
+
+    document.onkeyup = function (e) {
+
+        // get the key
+        var key = e.which || e.keyCode;
+
+        //is it shift?
+        if (key === 16) {
+            shift = false;
+        }
+    }
+    // ================================
+
+    // MOUSE PROCESSING THINGS
+    // --------------------------------
+
+    document.onmousedown = function (e) {
+
+        // update state
+        mouseDown = true;
+        updateMouseOn();
+        
+        // if we're clicking on something new
+        if (mouseOn && !selected(mouseOn)) {
+
+            // clear and add, or shift-add
+            if (!shift) {
+                empty();
+            };
+            add(mouseOn);
+
+            // for this loop, we've added the circle
+            recent = true;
+        }
+
+        // in case we're boxing
+        boxStartX = cursorX;
+        boxStartY = cursorY;
+
+        //debug();
+    }
+
+    document.onmousemove = function (e) {
+
+        // save old position
+        var cursorXprev = cursorX;
+        var cursorYprev = cursorY;
+
+        // update cursor position
+        cursorX = e.pageX - offsetX;
+        cursorY = e.pageY - offsetY;
+
+        // if we're clicking on something...
+        if (mouseDown) {
+            // moving condition
+            if (mouseOn) {
+
+                moved = true;
+
+                // for each selected circle...
+                selection.each(function () {
+                    move(this,
+                         cursorX - cursorXprev,
+                         cursorY - cursorYprev);
+                });
+            }
+            // if we're not mousing over anything...
+            else {
+                drawBox();
+            }
+        }
+
+        //debug();
+    }
+
+    document.onmouseup = function (e) {
+
+        // if we made a box...
+        if (boxed) {
+            // clear selection if we're not adding to it
+            if (!shift && !moved) {
+                empty();
+            }
+            // add boxed circles to selection
+            circles.each(function () {
+                if (bboxIntersect(this, box)) {
+                    add(this);
+                }
+            });
+            box.remove();
+        }
+        // if we clicked on something...
+        else if (mouseOn) {
+            // if we didn't move and we're not shift-adding, clear the selection
+            if (!shift && !moved) {
+                empty();
+            }
+            // if we're shift-clicking something selected, remove it
+            if (shift && selected(mouseOn) && !moved && !recent) {
+                remove(mouseOn);
+            }
+            // otherwise, add the thing we clicked on
+            else {
+                add(mouseOn);
+            }
+        }
+        // if not, we can clear the selection
+        else {
+            empty();
+        }
+
+        success = true;
+        for (var i in crossed) {
+            if (crossed[i]) {
+                success = false;
+                break;
+            }
+        }
+        background.fill( success ? "#eeffee" : "#ffeeee" );
+
+        // update state
+        mouseOn = false;
+        mouseDown = false;
+        moved = false;
+        recent = false;
+        boxed = false;
+
+        //debug();
+    }
+}
+// ================================
+// ================================================================
+
 // INIT STUFF
 // ----------------------------------------------------------------
 
@@ -423,151 +573,5 @@ for (var i = 0; i < circles.index(circles.last()); i++) {
 }
 connect(circles.first(), circles.last());
 
-// ================================================================
-
-// INPUT PROCESSING
-// ----------------------------------------------------------------
-
-// IS SHIFT HELD DOWN?
-// --------------------------------
-document.onkeydown = function (e) {
-
-    // get the key
-    var key = e.which || e.keyCode;
-
-    // is it shift?
-    if (key === 16) {
-        shift = true;
-    }
-}
-
-document.onkeyup = function (e) {
-
-    // get the key
-    var key = e.which || e.keyCode;
-
-    //is it shift?
-    if (key === 16) {
-        shift = false;
-    }
-}
-// ================================
-
-// MOUSE PROCESSING THINGS
-// --------------------------------
-
-document.onmousedown = function (e) {
-
-    // update state
-    mouseDown = true;
-    updateMouseOn();
-    
-    // if we're clicking on something new
-    if (mouseOn && !selected(mouseOn)) {
-
-        // clear and add, or shift-add
-        if (!shift) {
-            empty();
-        };
-        add(mouseOn);
-
-        // for this loop, we've added the circle
-        recent = true;
-    }
-
-    // in case we're boxing
-    boxStartX = cursorX;
-    boxStartY = cursorY;
-
-    //debug();
-}
-
-document.onmousemove = function (e) {
-
-    // save old position
-    var cursorXprev = cursorX;
-    var cursorYprev = cursorY;
-
-    // update cursor position
-    cursorX = e.pageX - offsetX;
-    cursorY = e.pageY - offsetY;
-
-    // if we're clicking on something...
-    if (mouseDown) {
-        // moving condition
-        if (mouseOn) {
-
-            moved = true;
-
-            // for each selected circle...
-            selection.each(function () {
-                move(this,
-                     cursorX - cursorXprev,
-                     cursorY - cursorYprev);
-            });
-        }
-        // if we're not mousing over anything...
-        else {
-            drawBox();
-        }
-    }
-
-    //debug();
-}
-
-document.onmouseup = function (e) {
-
-    // if we made a box...
-    if (boxed) {
-        // clear selection if we're not adding to it
-        if (!shift && !moved) {
-            empty();
-        }
-        // add boxed circles to selection
-        circles.each(function () {
-            if (bboxIntersect(this, box)) {
-                add(this);
-            }
-        });
-        box.remove();
-    }
-    // if we clicked on something...
-    else if (mouseOn) {
-        // if we didn't move and we're not shift-adding, clear the selection
-        if (!shift && !moved) {
-            empty();
-        }
-        // if we're shift-clicking something selected, remove it
-        if (shift && selected(mouseOn) && !moved && !recent) {
-            remove(mouseOn);
-        }
-        // otherwise, add the thing we clicked on
-        else {
-            add(mouseOn);
-        }
-    }
-    // if not, we can clear the selection
-    else {
-        empty();
-    }
-
-    success = true;
-    for (var i in crossed) {
-        if (crossed[i]) {
-            success = false;
-            break;
-        }
-    }
-    background.fill( success ? "#eeffee" : "#ffeeee" );
-
-    // update state
-    mouseOn = false;
-    mouseDown = false;
-    moved = false;
-    recent = false;
-    boxed = false;
-
-    //debug();
-}
-// ================================
+setGameInput();
 // ================================================================
