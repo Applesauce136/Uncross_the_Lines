@@ -36,7 +36,7 @@ var height = Math.min(w.innerHeight,
                       g.clientHeight) - boundary * 3;
 
 // number of circles
-var numCircles = 50;
+var numCircles = 30;
 
 // diameter of circles
 var diameter = 20;
