@@ -196,13 +196,15 @@ var makeLine = function (c1, c2) {
         .on("intersect", function (e) {
             var that = this;
             var crossed = false;
+            var prev = crosses[this][that];
             lines.each(function () {
-                    crossed = crossed || linesIntersect(this, that);
-                    if (e.detail.recurse && crossed) {
+                crossed = crossed || linesIntersect(this, that);
+                var curr = crosses[this][that]
+                    if (e.detail.recurse && crossed && prev !== curr) {
+                        console.log("recursing");
                         this.fire("intersect", {recurse:false});
-                }
-            }
-                      );            
+                    }
+            });            
             this.data("crossed", crossed);
             this.fire("recolor");
         })
@@ -405,6 +407,7 @@ var linesIntersect = function (l1, l2) {
              CCW(x3, y3, x0, y0, x1, y1));
     }
     crosses[l1][l2] = crossed;
+    crosses[l2][l1] = crossed;
     return crossed;
 }
 
