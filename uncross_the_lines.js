@@ -246,7 +246,7 @@ var drawLine = function(c1, c2) {
               c2.cx(), c2.cy());
 
     // update all the lines
-    checkLine(line, true);
+    checkLine(line);
     recolorLines();
 }
 
@@ -263,7 +263,7 @@ var checkAllLines = function () {
 // check to see if a line intersects any lines
 // if recurse is true, 
 var checkLine = function (line, recurse) {
-    recurse = typeof recurse !== undefined? recurse : false;
+    recurse = typeof recurse !== undefined? recurse : true;
 
     crossed[line] = false;
     // for all our lines
