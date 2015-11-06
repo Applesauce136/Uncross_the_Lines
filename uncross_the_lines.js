@@ -197,11 +197,9 @@ var makeLine = function (c1, c2) {
             var that = this;
             var crossed = false;
             lines.each(function () {
-                if (that !== this) {
                     crossed = crossed || linesIntersect(this, that);
                     if (e.detail.recurse && crossed) {
                         this.fire("intersect", {recurse:false});
-                    }
                 }
             }
                       );            
@@ -366,7 +364,10 @@ var linesIntersect = function (l1, l2) {
 
     // if both lines are in the selection or not in the selection,
     // use the old value
-    if (crosses[l1][l2] !== undefined &&
+    if (l1 === l2) {
+        crossed = false;
+    }
+    else if (crosses[l1][l2] !== undefined &&
         (l1.data("selected") && l2.data("selected"))//  ||
         // (!l1.data("active") && !l2.data("active"))
        ) {
