@@ -197,7 +197,7 @@ var makeLine = function (c1, c2) {
             var crossed = false;
             lines.each(function () {
                 crossed = crossed || linesIntersect(this, that);
-                if (e.detail.recurse) {
+                if (e.detail.recurse && crossed) {
                     this.fire("intersect", {recurse:false});
                 }
             })
