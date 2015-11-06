@@ -1,9 +1,18 @@
 "use strict";
 
-// VALUES
-// ----------------------------------------------------------------
+Array.prototype.myRemove = function (item) {
+    var index = this.index(item);
+    if (index > -1) {
+        this.splice(index, 1);
+    }
+}
 
-// CONSTANTS
+// VALUES
+
+var debugging = false;
+
+// ----------------------------------------------------------------
+// NUMERICS
 // --------------------------------
 
 // the minimum distance between a circle's starting position
@@ -26,18 +35,16 @@ var height = Math.min(w.innerHeight,
                       e.clientHeight,
                       g.clientHeight) - boundary * 3;
 
-// will contain the background box
-var background;
-
 // number of circles
 var numCircles = 10;
 
 // diameter of circles
 var diameter = 20;
 
-// the probability that any two circles will be connected
-var threshold = .3;
+// ================================
 
+// SVG GENERAL
+// --------------------------------
 // my div
 var canvas = document.getElementById("drawing");
 
@@ -48,32 +55,31 @@ var draw = SVG("drawing").size(width, height);
 var border = canvas.getBoundingClientRect();
 var offsetX = border.left;
 var offsetY = border.top;
+// ================================
 
+// SVG MINE
+// --------------------------------
 // all the circles
-var circles = draw.set();
+var circles;
 
 // all the lines
-var lines = [];
+var lines;
 
-// whether each line is crossing something
-var crossed = [];
+// the current selection
+var selection;
 
+// the background box
+var bg;
+
+// box selection
+var box;
 // ================================
 
 // STATE VARIABLES
 // --------------------------------
-
-// the cursor positions
+// the cursor position
 var cursorX;
 var cursorY;
-
-// the currently selected circles
-var selection = draw.set();
-
-// box selection
-var box;
-var boxStartX;
-var boxStartY;
 
 // is shift held down?
 var shift = false;
@@ -96,336 +102,249 @@ var boxed = false;
 
 // did we win?
 var success = false;
-
 // ================================
 // ================================================================
 
 // HELPER FUNCTIONS
 // ----------------------------------------------------------------
 
-// make a circle, and add it to the set of all circles
-var makeCircle = function(x, y) {
-
-    // make the circle
-    var circle = draw.circle(diameter)
+// CREATORS
+// --------------------------------
+var makeCircle = function (x, y) {
+    var circle = draw
+        .circle(diameter)
+        .fill("black")
         .center(x, y)
-        .front();
+        .data("friends", [])
+        .data("lines", [])
+        .data("selected", false)
 
-    // give the circle a place to store its friends
-    // friends = circles to which it's connected
-    circle.friends = [];
+        .on("select", function (e) {
+            this.data("selected", true);
+            this.fire("recolor");
+            this.data("friends").forEach(function (id) {
+                SVG.get(id).fire("recolor");
+            });
+        })
 
-    // add the circle to the master list
+        .on("deselect", function (e) {
+            this.data("selected", false);
+            this.fire("recolor");
+            this.data("friends").forEach(function (id) {
+                SVG.get(id).fire("recolor");
+            });
+        })
+    
+        .on("recolor", function (e) {
+            if (this.data("selected")) {
+                this.fill("red");
+            }
+            else if (this.data("friends")
+                     .reduce(function(a, b) {
+                         return a ||
+                             SVG.get(b).data("selected");
+                     },
+                             false)) {
+                this.fill("blue");
+            }
+            else {
+                this.fill("black");
+            }
+        })
+
+        .on("move", function (e) {
+            this.data("lines").forEach(function (id) {
+                SVG.get(id).fire("move");
+            });
+        });
+
     circles.add(circle);
     return circle;
-
 }
 
-// move circle
-var move = function(circle, dx, dy) {
+var makeLine = function (c1, c2) {
+    var line = draw
+        .line(c1.cx(), c1.cy(),
+              c2.cx(), c2.cy())
+        .stroke("red")
+        .after(c1)
+        .after(c2)
+        .data("start", c1.id())
+        .data("end", c2.id())
+        .data("crossed", false)
 
-    // get new coordinates
-    var nx = circle.cx() + dx;
-    var ny = circle.cy() + dy;
+        .on("move", function (e) {
+            var start = SVG.get(this.data("start"));
+            var end = SVG.get(this.data("end"));
+            this.plot(start.cx(), start.cy(),
+                      end.cx(),   end.cy());
+            this.fire("intersect");
+        })
 
-    // make sure the new coordinates are in bounds
-    if (inBounds(nx, ny)) {
-        circle.center(nx, ny).front();
-    }
+        .on("intersect", function (e) {
+            var that = this;
+            var crossed = false;
+            lines.each( function () {
+                if (linesIntersect(this, that)) {
+                    crossed = true;
+                    this.data("crossed", true);
+                }
+            });
+            this.data("crossed", crossed);
+            this.fire("recolor");
+        })
 
-    // update the circle's neighbors
-    for (var i in circle.friends) {
-        var friend = circle.friends[i];
-        drawLine(circle, friend);
-    }
+        .on("recolor", function (e) {
+            this.stroke( this.data("crossed") ? 
+                         "red" :
+                         "green");
+        });
 
-    return circle;
+    lines.add(line)
+    return line;
 }
 
-// connect two circles
-var connect = function (c1, c2) {
+var makeBox = function () {
 
-    // if they're not connected...
-    if (!connected(c1, c2)) {
+    return draw
+        .rect(0, 0)
+        .fill("green")
+        .opacity(.3)
+        .front()
+        .data("anchorX", 0)
+        .data("anchorY", 0)
 
-        // make the line
-        var line =  draw.line(c1.cx(), c1.cy(),
-                              c2.cx(), c2.cy())
-            .stroke("#555555")
-            .after(c1)
-            .after(c2);
+        .on("anchor", function (e) {
+            this.data("anchorX", e.detail.x);
+            this.data("anchorY", e.detail.y);
+        })
 
-        // update state variables
-        lines[c1 + c2] = line;
-        crossed[line] = true;
-
-        // render the line
-        drawLine(c1, c2);
-
-        // tell the circles who their friends are
-        c1.friends.push(c2);
-        c2.friends.push(c1);
-    }
+        .on("redraw", function (e) {
+            this.show();
+            var x = e.detail.x;
+            var y = e.detail.y;
+            this.move(Math.min(x, this.data("anchorX")),
+                      Math.min(y, this.data("anchorY")))
+                .width (Math.abs(x - this.data("anchorX")))
+                .height(Math.abs(y - this.data("anchorY")));
+        });
 }
 
-// disconnect two circles
-var disconnect = function (c1, c2) {
+var makeBG = function () {
+    return draw
+        .rect(width, height)
+        .back()
+        .data("success", "rgb(230, 255, 230)")
+        .data("failure", "rgb(255, 240, 240)")
 
-    // if they're connected
-    if (connected(c1, c2)) {
-
-        // get the line and remove it from the master list
-        var line = lines[c1 + c2];
-        lines.splice(c1 + c2, 1);
-        if (!line) {
-            line = lines[c2 + c1];
-            lines.splice(c2 + c1, 1);
-        }
-
-        // remove the line from our list of crossings
-        crossed.splice(line, 1);
-        line.plot(0, 0, 0, 0);
-
-        // remove line
-        // TODO: make sure lines are removed from memory
-        // right now i think .remove() actually just hides them
-        line.remove();
-        
-        // remove friends from circles
-        var i1 = c1.friends.indexOf(c2);
-        if (i1 >= 0) {
-            c1.friends.splice(i1, 1);
-        }
-        var i2 = c2.friends.indexOf(c1);
-        if (i2 >= 0) {
-            c2.friends.splice(i2, 1);
-        }
-    }
+        .on("recolor", function (e) {
+            this.fill(success ? this.data("success") : this.data("failure"));
+        })
+        .fire("recolor");
 }
 
-// check to see if circles are connected
-var connected = function (c1, c2) {
+// ================================
+
+// BOND MAKERS AND BREAKERS
+// --------------------------------
+var areFriends = function (c1, c2) {
     
+    return
     // if c2 is c1's friend
-    for (var i in c1.friends) {
-        if (c1.friends[i] === c2) {
-            return true;
-        }
-    }
-    // if c1 is c2's friend
-    for (var i in c2.friends) {
-        if (c2.friends[i] === c1) {
-            return true;
-        }
-    }
+    (c1.data("friends").reduce(function (a, b) {
+        return a || SVG.get(b) === c2;
+    }, false) ||
+     // if c1 is c2's friend
+     c2.data("friends").reduce(function (a, b) {
+         return a || SVG.get(b) === c1;
+     }, false));
     // the second check might not be necessary,
     // but safe programming is good programming
     // also it's only like ~5 more accesses, at worst
-    return false;
 }
 
-// draw line between two circles
-var drawLine = function(c1, c2) {
+var makeFriends = function (c1, c2) {
 
-    // get the line
-    var line = lines[c1 + c2];
-    if (!line) {
-        line = lines[c2 + c1];
-    }
-
-    // update its coordinates
-    line.plot(c1.cx(), c1.cy(),
-              c2.cx(), c2.cy());
-
-    // update all the lines
-    checkAllLines();
-    recolorLines();
-}
-
-// check all the lines
-// runtime is a little scary!
-var checkAllLines = function () {
-
-    // for all our lines
-    for (var i in lines) {
-        checkLine(lines[i]);
-    }
-}
-
-// check to see if a line intersects any lines
-var checkLine = function (line) {
-
-    crossed[line] = false;
-    // for all our lines
-    for (var i in lines) {
-        var line2 = lines[i]
-
-        if (linesIntersect(line, line2)) {
-            crossed[line] = true;
-            return true;
-        }
-    }
-    return false;
-}
-
-// recolor all the lines properly
-// note: relies on crossed[],
-// ideally call after checking lines
-var recolorLines = function () {
-
-    // for all our lines
-    for (var i in lines) {
-        // set its stroke to either red or green
-        lines[i].stroke( crossed[lines[i]] ? "red" : "green" );
-    }
-}
-
-// check to see if two points are basically the same
-var samePoint = function (x0, y0, x1, y1) {
-    return (Math.abs(x0 - x1) < diameter / 100 &&
-            Math.abs(y0 - y1) < diameter / 100);
-}
-
-// check to see if three points are counterclockwise
-var CCW = function (x0, y0, x1, y1, x2, y2) {
-    return 0 > Math.sign(crossProduct(x1 - x0, y1 - y0,
-                                      x2 - x0, y2 - y0));
-}
-
-// vectors yay!
-var crossProduct = function (x0, y0, x1, y1) {
-    return x0 * y1 - x1 * y0;
-}
-
-// check if the game is currently solved
-var didWeWin = function () {
-    success = true;
-    // if any line is crossed, we didn't solve it
-    for (var i in crossed) {
-        if (crossed[i]) {
-            success = false;
-            break;
-        }
-    }
-    // if we won, make it green
-    // if not, it's red
-    // remember, rgb
-    background.fill( success ? "#eeffee" : "#ffeeee" );
-}
-
-// if the circle is in our selection
-var selected = function(circle) {
-    return selection.has(circle);
-}
-
-// add circle to selection
-var add = function(circle) {
-
-    // if it's not already selected
-    // surprisingly, svg.js doesn't have this check
-    if (!selected(circle)) {
+    // if they're not already friends
+    if (!areFriends(c1, c2)) {
         
+        // draw a line between them
+        var line = makeLine(c1, c2);
+
+        // tell them they're friends
+        c1.data("friends", c1.data("friends").concat(c2.id()));
+        c2.data("friends", c2.data("friends").concat(c1.id()));
+
+        // tell them about the line
+        c1.data("lines", c1.data("lines").concat(line.id()));
+        c2.data("lines", c2.data("lines").concat(line.id()));
+
+    }
+}
+
+var breakUp = function (c1, c2) {
+
+    // if they're alreayd friends
+    if (areFriends(c1, c2)) {
+        
+        // find the line between them
+        var line;
+        c1.data("lines").forEach( function () {
+            var line_in = this;
+            c2.data("lines").forEach( function () {
+                if (this === line_in) {
+                    line = SVG.get(this);
+                }
+            })});
+
+        // tell them they're not friends anymore
+        c1.data("friends", c1.data("friends").myRemove(c2.id()));
+        c2.data("friends", c2.data("friends").myRemove(c1.id()));
+
+        if (line !== undefined) {
+            // tell to forget about the line
+            c1.data("lines", c1.data("lines").myRemove(line.id()));
+            c2.data("lines", c2.data("lines").myRemove(line.id()));
+        }
+    }
+}
+
+// ================================
+
+// SELECTION MODIFIERS
+// --------------------------------
+
+var select = function (circle) {
+    if (!circle.data("selected")) {
+        circle.fire("select");
         selection.add(circle);
-        circle.fill("red").front();
-
-        // make all the circle's friends blue
-        // it looks really cool!
-        for (var i in circle.friends) {
-            var friend = circle.friends[i];
-            if (!selected(friend)) {
-                friend.fill("blue");
-            }
-        }
-        return true;
     }
-    return false;
 }
 
-// remove circle from selection
-var remove = function(circle) {
-
-    // only remove if it's selected
-    if (selected(circle)) {
-
+var deselect = function (circle) {
+    if (circle.data("selected")) {
+        circle.fire("deselect");
         selection.remove(circle);
-        circle.fill("black");
-
-        // uncolor this circle's friends
-        // unless they're selected, in which case they stay red
-        for (var i in circle.friends) {
-            var friend = circle.friends[i];
-            if (!selected(friend)) {
-                friend.fill("black");
-            }
-        }
-        
-        return true;
     }
-    return false;
 }
 
-// clear the selection
-var empty = function () {
-
-    // accumulate selection in separate array
-    var subSelection = [];
-    selection.each(function (i) {
-        subSelection.push(this);
+var clearSelection = function (circle) {
+    var oldSelection = [];
+    selection.each(function () {
+        oldSelection.push(this);
     });
-
-    // remove accumulation
-    for (var i in subSelection) {
-        remove(subSelection[i]);
-    }
-
-    return selection;
-    // using .remove inside of .each fucks everything up
-}
-
-// update circle under mouse
-var updateMouseOn = function () {
-    mouseOn = false;
-
-    // iterate through circles to see if any are clicked on
-    circles.each(function (i) {
-        if (this.inside(cursorX, cursorY)) {
-            mouseOn = this;
-            return mouseOn;
-        }
+    oldSelection.forEach(function (item) {
+        deselect(item);
     });
-    return mouseOn;
 }
 
-// draw a box based on the current mouse state
-var drawBox = function () {
+// ================================
 
-    // if the box is big enough... 
-    if (Math.abs(boxStartX - cursorX) > diameter / 4 ||
-        Math.abs(boxStartY - cursorY) > diameter / 4) {
-        // remove the old box
-        if (box !== undefined) {
-            box.remove();
-        }
-        // draw box
-        box = draw
-        // box size
-            .rect(Math.abs(boxStartX - cursorX),
-                  Math.abs(boxStartY - cursorY))
-        // box position
-            .move(Math.min(boxStartX, cursorX),
-                  Math.min(boxStartY, cursorY))
-        // SC2 style baby
-            .fill("green")
-            .opacity(.3)
-            .front();
-        boxed = true;
-    }
-}
-
-// check if two lines intersect
-// super huge thanks to:
-// http://jeffe.cs.illinois.edu/teaching/373/notes/x06-sweepline.pdf
+// INTERSECTION
+// --------------------------------
 var linesIntersect = function (l1, l2) {
+    // super huge thanks to:
+    // http://jeffe.cs.illinois.edu/teaching/373/notes/x06-sweepline.pdf
 
     // a bunch of accessing and terminology fixing
     var x0, y0, x1, y1, x2, y2, x3, y3;
@@ -457,6 +376,23 @@ var linesIntersect = function (l1, l2) {
          CCW(x3, y3, x0, y0, x1, y1));
 }
 
+// check to see if two points are basically the same
+var samePoint = function (x0, y0, x1, y1) {
+    return (Math.abs(x0 - x1) < diameter / 100 &&
+            Math.abs(y0 - y1) < diameter / 100);
+}
+
+// check to see if three points are counterclockwise
+var CCW = function (x0, y0, x1, y1, x2, y2) {
+    return 0 > Math.sign(crossProduct(x1 - x0, y1 - y0,
+                                      x2 - x0, y2 - y0));
+}
+
+// vectors yay!
+var crossProduct = function (x0, y0, x1, y1) {
+    return x0 * y1 - x1 * y0;
+}
+
 var bboxIntersect = function (shape1, shape2) {
 
     // extract values, for corners
@@ -475,23 +411,23 @@ var bboxIntersect = function (shape1, shape2) {
             shape2.inside(b1.x2, b1.y2)
     );
 }
+// ================================
 
-// check if a point is in our boundary
+
+// MISC. HELPERS
+// --------------------------------
 var inBounds = function (x, y) {
     return inBoundsX(x) && inBoundsY(y);
 }
 
-// check the x of a point
 var inBoundsX = function (x) {
     return between(boundary, x, width - boundary);
 }
 
-// check the y of a point
 var inBoundsY = function (y) {
     return between(boundary, y, height - boundary);
 }
 
-// check if a value is between two other values
 var between= function (a, b, c) {
     return (a < b && b < c);
 }
@@ -501,167 +437,29 @@ var makeRandom = function (min, max) {
     return min + (max - min) * Math.random();
 }
 
-var debug = function() {
-    console.log("cursorX:   " + cursorX + "\n" +
-                "cursorY:   " + cursorY + "\n" +
-                "shift:     " + shift + "\n" +
-                "mouseDown: " + mouseDown + "\n" +
-                "moved:     " + moved + "\n" +
-                "recent:    " + recent + "\n" +
-                "mouseOn:   " + mouseOn + "\n" +
-                "box:       " + box + "\n" +
-                "");
+// check if the game is currently solved
+var didWeWin = function () {
+    success = true;
+    // if any line is crossed, we didn't solve it
+    lines.each(function () {
+        this.fire("intersect");
+        if (this.data("crossed")) {
+            success = false;
+        }
+    });
 }
 
-// ================================================================
-
-// INPUT PROCESSING
-// ----------------------------------------------------------------
-
-// the input processing triggers for when the game is active
-var setGameInput = function () {
-
-    // KEYBOARD PROCESSING THINGS
-    // --------------------------------
-
-    // when a key is pressed
-    document.onkeydown = function (e) {
-
-        // get the key
-        var key = e.which || e.keyCode;
-
-        // is it shift?
-        if (key === 16) {
-            shift = true;
-        }
-    }
-
-    // when a key is released
-    document.onkeyup = function (e) {
-
-        // get the key
-        var key = e.which || e.keyCode;
-
-        //is it shift?
-        if (key === 16) {
-            shift = false;
-        }
-    }
-    // ================================
-
-    // MOUSE PROCESSING THINGS
-    // --------------------------------
-
-    // when the mouse is clicked
-    document.onmousedown = function (e) {
-
-        // update state
-        mouseDown = true;
-        updateMouseOn();
-        
-        // if we're clicking on something new
-        if (mouseOn && !selected(mouseOn)) {
-
-            // clear and add, or shift-add
-            if (!shift) {
-                empty();
-            };
-            add(mouseOn);
-
-            // tell state that the circle was just added
-            recent = true;
-        }
-
-        // in case we're boxing
-        boxStartX = cursorX;
-        boxStartY = cursorY;
-
-        //debug();
-    }
-
-    // while the mouse is held down
-    document.onmousemove = function (e) {
-
-        // save old position
-        var cursorXprev = cursorX;
-        var cursorYprev = cursorY;
-
-        // update cursor position
-        cursorX = e.pageX - offsetX;
-        cursorY = e.pageY - offsetY;
-
-        // if we're clicking on something...
-        if (mouseDown) {
-            // if we're on a circle
-            if (mouseOn) {
-
-                // tell state we've moved
-                moved = true;
-
-                // move all the circles in our selection
-                selection.each(function () {
-                    move(this,
-                         cursorX - cursorXprev,
-                         cursorY - cursorYprev);
-                });
-            }
-            // if we're not on a circle...
-            else {
-                drawBox();
-            }
-        }
-        checkAllLines();
-        //debug();
-    }
-
-    // when the mouse is released
-    document.onmouseup = function (e) {
-
-        // if we made a box...
-        if (boxed) {
-            // clear selection if we're not adding to it
-            if (!shift && !moved) {
-                empty();
-            }
-            // add boxed circles to selection
-            circles.each(function () {
-                if (bboxIntersect(this, box)) {
-                    add(this);
-                }
-            });
-            box.remove();
-        }
-        // if we clicked on something...
-        else if (mouseOn) {
-            // if we didn't move and we're not shift-adding, clear the selection
-            if (!shift && !moved) {
-                empty();
-            }
-
-            // if we're shift-clicking something selected, remove it
-            if (shift && selected(mouseOn) && !moved && !recent) {
-                remove(mouseOn);
-            }
-            // otherwise, add the thing we clicked on
-            else {
-                add(mouseOn);
-            }
-        }
-        // if we clicked in space, empty the selection
-        else {
-            empty();
-        }
-
-        didWeWin();
-
-        // update state
-        mouseOn = false;
-        mouseDown = false;
-        moved = false;
-        recent = false;
-        boxed = false;
-
-        //debug();
+var debug = function() {
+    if (debugging) {
+        console.log("cursorX:   " + cursorX + "\n" +
+                    "cursorY:   " + cursorY + "\n" +
+                    "shift:     " + shift + "\n" +
+                    "mouseDown: " + mouseDown + "\n" +
+                    "moved:     " + moved + "\n" +
+                    "recent:    " + recent + "\n" +
+                    "mouseOn:   " + mouseOn + "\n" +
+                    "box:       " + box + "\n" +
+                    "");
     }
 }
 // ================================
@@ -675,13 +473,9 @@ var setGameInput = function () {
 // SOLVABLE
 // --------------------------------
 var popBorder = function () {
-    for (var i = 0; i < numCircles; i += 1) {
-
-        var c1 = circles.get((i  ) % numCircles);
-        var c2 = circles.get((i+1) % numCircles);
-
-        connect(c1, c2);
-    }
+    circles.each(function (i, children) {
+        makeFriends(this, children[(i+1) % numCircles]);
+    });
 }
 // ================================
 
@@ -700,9 +494,9 @@ var popMaxEdges = function () {
         var c2 = circles.get(Math.floor(makeRandom(0, numCircles)));
 
         if (c1 !== c2 &&
-            !connected(c1, c2)) {
+            !areFriends(c1, c2)) {
 
-            connect(c1, c2);
+            makeFriends(c1, c2);
             added = true;
         }
     }
@@ -752,40 +546,188 @@ var popBorderOfTrianglesHelper = function (raw_circles) {
         var c2 = raw_circles.get((i+1) % raw_circles.length());
         var c3 = raw_circles.get((i+2) % raw_circles.length());
 
-        connect(c1, c2);
-        connect(c2, c3);
-        connect(c1, c3);
+        makeFriends(c1, c2);
+        makeFriends(c2, c3);
+        makeFriends(c1, c3);
 
         innerCircles.add(c2);
     }
     return innerCircles;
 }
+
 // ================================
 
 // ================================================================
-
-// INIT STUFF
+// INPUT PROCESSING
 // ----------------------------------------------------------------
 
-// draw background
-background = draw.rect(width, height).fill("#ffeeee").back();
+// the input processing triggers for when the game is active
+var setGameInput = function () {
 
-var c1 = makeCircle(100, 100);
-var c2 = makeCircle(100, 200);
-var c3 = makeCircle(200, 100);
-var c4 = makeCircle(200, 200);
+    // KEYBOARD PROCESSING THINGS
+    // --------------------------------
 
-connect(c1, c2);
-connect(c3, c4);
+    // when a key is pressed
+    document.onkeydown = function (e) {
 
-// popBorderOfTrianglesMax();
-checkAllLines();
-recolorLines();
-setGameInput();
+        // get the key
+        var key = e.which || e.keyCode;
+
+        // is it shift?
+        if (key === 16) {
+            shift = true;
+        }
+    }
+
+    // when a key is released
+    document.onkeyup = function (e) {
+
+        // get the key
+        var key = e.which || e.keyCode;
+
+        //is it shift?
+        if (key === 16) {
+            shift = false;
+        }
+    }
+    // ================================
+
+    // MOUSE PROCESSING THINGS
+    // --------------------------------
+
+    // when the mouse is clicked
+    document.onmousedown = function (e) {
+
+        // update state
+        mouseDown = true;
+
+        // update circle under mouse
+        mouseOn = false;
+
+        // iterate through circles to see if any are clicked on
+        circles.each(function (i) {
+            if (this.inside(cursorX, cursorY)) {
+                mouseOn = this;
+            }
+        });
+
+        // if we're clicking on something new
+        if (mouseOn && !mouseOn.data("selected")) {
+
+            // clear and add, or shift-add
+            if (!shift) {
+                clearSelection();
+            };
+            select(mouseOn);
+
+            // tell state that the circle was just added
+            recent = true;
+        }
+
+        // in case we're boxing
+        box.fire("anchor", {x: cursorX, y: cursorY});
+
+        debug();
+    }
+
+    // while the mouse is held down
+    document.onmousemove = function (e) {
+
+        // save old position
+        var cursorXprev = cursorX;
+        var cursorYprev = cursorY;
+
+        // update cursor position
+        cursorX = e.pageX - offsetX;
+        cursorY = e.pageY - offsetY;
+
+        // if we're clicking on something...
+        if (mouseDown) {
+            // if we're on a circle
+            if (mouseOn) {
+
+                // tell state we've moved
+                moved = true;
+
+                // move all the circles in our selection
+                selection.dmove(cursorX - cursorXprev, cursorY - cursorYprev);
+                selection.each(function () {
+                    this.fire("move");
+                });
+            }
+            // if we're not on a circle...
+            else {
+
+                boxed = true;
+
+                // clear selection if we're not adding to it
+                if (!shift && !moved) {
+                    clearSelection();
+                }
+                // add boxed circles to selection
+                circles.each(function () {
+                    if (bboxIntersect(this, box)) {
+                        select(this);
+                    }
+                });
+                box.fire("redraw", {x: cursorX, y: cursorY});
+            }
+        }
+
+        didWeWin();
+        bg.fire("recolor");
+        debug();
+    }
+
+    // when the mouse is released
+    document.onmouseup = function (e) {
+
+        // if we clicked on something...
+        if (mouseOn) {
+            // if we didn't move and we're not shift-adding, clear the selection
+            if (!shift && !moved) {
+                clearSelection();
+            }
+
+            // if we're shift-clicking something selected, remove it
+            if (shift && mouseOn.data("selected") && !moved && !recent) {
+                deselect(mouseOn);
+            }
+            // otherwise, add the thing we clicked on
+            else {
+                select(mouseOn);
+            }
+        }
+        // if we clicked in space, empty the selection
+        else if (!boxed) {
+            clearSelection();
+        }
+
+        box.hide();
+
+        // update state
+        mouseOn = false;
+        mouseDown = false;
+        moved = false;
+        recent = false;
+        boxed = false;
+
+        debug();
+    }
+}
+// ================================
 // ================================================================
-// max edges in a graph = n(n-1)/2
-// max edges with solution = 3+3(n-3) (n >= 3)
-// = 3(1+n-3)
-// = 3(n-2)
-// = 2n?
 
+circles = draw.set();
+lines = draw.set();
+selection = draw.set();
+
+box = makeBox();
+bg = makeBG();
+
+for (var i = 0; i < numCircles; i++) {
+    makeCircle(makeRandom(boundary, width - boundary),
+               makeRandom(boundary, height - boundary));
+}
+popBorder();
+setGameInput();
