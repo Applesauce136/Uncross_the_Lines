@@ -36,7 +36,7 @@ var height = Math.min(w.innerHeight,
                       g.clientHeight) - boundary * 3;
 
 // number of circles
-var numCircles = 10;
+var numCircles = 30;
 
 // diameter of circles
 var diameter = 20;
@@ -729,5 +729,5 @@ for (var i = 0; i < numCircles; i++) {
     makeCircle(makeRandom(boundary, width - boundary),
                makeRandom(boundary, height - boundary));
 }
-popBorder();
+popBorderOfTrianglesMax();
 setGameInput();
