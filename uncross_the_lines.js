@@ -41,6 +41,11 @@ var numCircles = 50;
 // diameter of circles
 var diameter = 20;
 
+// the distance the mouse must travel to force a solution check
+var checkDist = 20;
+
+// a threshold that moderates how much distance is added at a time
+var checkSpeed = 5;
 // ================================
 
 // SVG GENERAL
@@ -82,8 +87,11 @@ var box;
 var crosses;
 
 // the cursor position
-var cursorX;
-var cursorY;
+var cursorX = 0;
+var cursorY = 0;
+
+// the distance traveled recently
+var traveled = 0;
 
 // is shift held down?
 var shift = false;
@@ -468,8 +476,7 @@ var didWeWin = function () {
     success = true;
     // if any line is crossed, we didn't solve it
     lines.each(function () {
-        this.fire("intersect"//, {recurse:false}
-                 );
+        this.fire("intersect");
         success = success && !this.data("crossed");
     });
     bg.fire("recolor");
@@ -657,9 +664,7 @@ var setGameInput = function () {
     }
 
     // while the mouse is held down
-    var count = 0;
     document.onmousemove = function (e) {
-
         // save old position
         var cursorXprev = cursorX;
         var cursorYprev = cursorY;
@@ -667,10 +672,9 @@ var setGameInput = function () {
         // update cursor position
         cursorX = e.pageX - offsetX;
         cursorY = e.pageY - offsetY;
-
-        count++;
         // if we're clicking on something...
         if (mouseDown) {
+
             // if we're on a circle
             if (mouseOn) {
 
@@ -683,9 +687,19 @@ var setGameInput = function () {
                     this.fire("move");
                 });
 
-                if (count === 10) {
+                var dist = Math.abs(cursorX - cursorXprev) + Math.abs(cursorY - cursorYprev);
+                if (dist < checkSpeed && traveled > checkDist) {
                     didWeWin();
-                    count = 0;
+                    traveled = 0;
+                }
+                else if (dist > checkDist) {
+                    traveled = checkDist;
+                }
+                else if (dist > checkSpeed) {
+                    traveled += 1;
+                }
+                else {
+                    traveled += dist;
                 }
             }
             // if we're not on a circle...
@@ -734,6 +748,7 @@ var setGameInput = function () {
         }
 
         box.hide();
+        didWeWin();
 
         // update state
         mouseOn = false;
