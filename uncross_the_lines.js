@@ -30,7 +30,7 @@ var height = Math.min(w.innerHeight,
 var background;
 
 // number of circles
-var numCircles = 30;
+var numCircles = 15;
 
 // diameter of circles
 var diameter = 20;
@@ -258,8 +258,16 @@ var selected = function(circle) {
 // add circle to selection
 var add = function(circle) {
     if (!selected(circle)) {
+        
         selection.add(circle);
         circle.fill("red").front();
+
+        for (var i in circle.friends) {
+            var friend = circle.friends[i];
+            if (!selected(friend)) {
+                friend.fill("blue");
+            }
+        }
         return true;
     }
     return false;
@@ -268,8 +276,17 @@ var add = function(circle) {
 // remove circle from selection
 var remove = function(circle) {
     if (selected(circle)) {
+
         selection.remove(circle);
         circle.fill("black");
+
+        for (var i in circle.friends) {
+            var friend = circle.friends[i];
+            if (!selected(friend)) {
+                friend.fill("black");
+            }
+        }
+        
         return true;
     }
     return false;
@@ -278,7 +295,7 @@ var remove = function(circle) {
 // clear the selection
 var empty = function () {
     selection.each(function (i) {
-        this.fill("black");
+        remove(this);
     });
     return selection.clear();
 }
