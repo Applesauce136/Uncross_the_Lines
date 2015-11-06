@@ -43,6 +43,9 @@ var diameter = 20;
 
 // the max speed for checks to occur
 var checkSpeed = 5;
+
+// the distance that must be traversed to check again
+var checkDist = 2;
 // ================================
 
 // SVG GENERAL
@@ -86,6 +89,9 @@ var crosses;
 // the cursor position
 var cursorX = 0;
 var cursorY = 0;
+
+// the distance traveled recently
+var traveled = 0;
 
 // is shift held down?
 var shift = false;
@@ -682,7 +688,13 @@ var setGameInput = function () {
                 });
                 var dist = Math.abs(cursorX - cursorXprev) + Math.abs(cursorY - cursorYprev);
                 if (dist < checkSpeed) {
-                    didWeWin();
+                    if ( traveled > checkDist) {
+                        didWeWin();
+                        traveled = 0;
+                    }
+                    else {
+                        traveled += dist;
+                    }
                 }
             }
             // if we're not on a circle...
