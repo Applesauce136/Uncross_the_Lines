@@ -30,7 +30,7 @@ var height = Math.min(w.innerHeight,
 var background;
 
 // number of circles
-var numCircles = 20;
+var numCircles = 7;
 
 // diameter of circles
 var diameter = 20;
@@ -148,21 +148,64 @@ var move = function(circle, dx, dy) {
 // connect two circles
 var connect = function (c1, c2) {
 
-    var line =  draw.line(c1.cx(), c1.cy(),
-                          c2.cx(), c2.cy())
-        .stroke("#555555")
-        .after(c1)
-        .after(c2);
-    lines[c1 + c2] = line;
-    crossed[line] = true;
+    if (!connected(c1, c2)) {
+        var line =  draw.line(c1.cx(), c1.cy(),
+                              c2.cx(), c2.cy())
+            .stroke("#555555")
+            .after(c1)
+            .after(c2);
+        lines[c1 + c2] = line;
+        crossed[line] = true;
 
-    // render the line
-    drawLine(c1, c2);
+        // render the line
+        drawLine(c1, c2);
 
-    // tell the circles who their friends are
-    c1.friends.push(c2);
-    c2.friends.push(c1);
+        // tell the circles who their friends are
+        c1.friends.push(c2);
+        c2.friends.push(c1);
+    }
+}
 
+// disconnect two circles
+var disconnect = function (c1, c2) {
+
+    if (connected(c1, c2)) {
+        // get the line
+        var line = lines[c1 + c2];
+        lines.splice(c1 + c2, 1);
+        if (!line) {
+            line = lines[c2 + c1];
+            lines.splice(c2 + c1, 1);
+        }
+        crossed.splice(line, 1);
+        line.plot(0, 0, 0, 0);
+        line.remove();
+        
+        var i1 = c1.friends.indexOf(c2);
+        if (i1 >= 0) {
+            c1.friends.splice(i1, 1);
+        }
+
+        var i2 = c2.friends.indexOf(c1);
+        if (i2 >= 0) {
+            c2.friends.splice(i2, 1);
+        }
+    }
+}
+
+var connected = function (c1, c2) {
+    
+    for (var i in c1.friends) {
+        if (c1.friends[i] === c2) {
+            return true;
+        }
+    }
+    for (var i in c2.friends) {
+        if (c2.friends[i] === c1) {
+            return true;
+        }
+    }
+    return false;
 }
 
 // draw line between two circles
@@ -406,7 +449,7 @@ var debug = function() {
 
 var setGameInput = function () {
 
-    // IS SHIFT HELD DOWN?
+    // KEYBOARD PROCESSING THINGS
     // --------------------------------
     document.onkeydown = function (e) {
 
@@ -416,6 +459,12 @@ var setGameInput = function () {
         // is it shift?
         if (key === 16) {
             shift = true;
+        }
+        else if (selection.length() >= 2 && key === 65) {
+            connect(selection.first(), selection.last());
+        }
+        else if (selection.length() >= 2 && key === 68) {
+            disconnect(selection.first(), selection.last());
         }
     }
 
@@ -564,14 +613,39 @@ for (var i = 0; i < numCircles; i++) {
 }
 
 // create pairs
-for (var i = 0; i < circles.index(circles.last()); i++) {
+for (var i = 0; i < numCircles - 2; i += 2) {
 
     var c1 = circles.get(i);
     var c2 = circles.get(i + 1);
+    var c3 = circles.get(i + 2);
 
     connect(c1, c2);
+    connect(c2, c3);
+    connect(c1, c3);
 }
 connect(circles.first(), circles.last());
 
+// var added;
+// for (var edges = 0; edges < 3 * (numCircles - 2); added ? edges++ : edges) {
+
+//     added = false;
+
+//     var c1 = circles.get(Math.floor(makeRandom(0, numCircles)));
+//     var c2 = circles.get(Math.floor(makeRandom(0, numCircles)));
+
+//     if (c1 !== c2 &&
+//         !connected(c1, c2)) {
+
+//         connect(c1, c2);
+//         added = true;
+//     }
+// }
+
 setGameInput();
 // ================================================================
+// max edges in a graph = n(n-1)/2
+// max edges with solution = 3+3(n-3) (n >= 3)
+// = 3(1+n-3)
+// = 3(n-2)
+// = 2n?
+
