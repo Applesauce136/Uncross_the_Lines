@@ -803,6 +803,8 @@ for (var i = 0; i < numCircles; i++) {
 }
 
 popBorderOfTrianglesMax();
+checkAllLines();
+recolorLines();
 setGameInput();
 // ================================================================
 // max edges in a graph = n(n-1)/2
