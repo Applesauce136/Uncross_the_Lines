@@ -48,9 +48,8 @@ var offsetY = border.top;
 // all the circles
 var circles = draw.set();
 
-// all the circle pairs
-// each element is a draw.set() containing two circles and a line
-// var circleSet = [];
+// all the lines
+var lines = [];
 
 // ================================
 
@@ -104,7 +103,7 @@ var makeCircle = function(x, y) {
         .front();
 
     // the circles attached to this one
-    circle.sets = [];
+    circle.friends = [];
 
     circles.add(circle);
     return circle;
@@ -119,12 +118,13 @@ var move = function(circle, dx, dy) {
 
     // make sure the new coordinates are in bounds
     if (inBounds(nx, ny)) {
-        circle.center(nx, ny);
+        circle.center(nx, ny).front();
     }
 
     // update the circle's neighbors
-    for (var i = 0; i < circle.sets.length; i++) {
-        drawLine(circle.sets[i]);
+    for (var i in circle.friends) {
+        var friend = circle.friends[i];
+        drawLine(circle, friend);
     }
 
     return circle;
@@ -138,22 +138,19 @@ var move = function(circle, dx, dy) {
 // connect two circles
 var connect = function (c1, c2) {
 
-    // set containing two circles and a line
-    var circlePair = draw.set()
-        .add(c1)
-        .add(c2)
-        .add(draw.line(0, 0, 0, 0)
-             .stroke("#555555")
-             .after(c1)
-             .after(c2));
+    lines[c1 + c2] = draw.line(c1.cx(), c1.cy(),
+                               c2.cx(), c2.cy())
+        .stroke("#555555")
+        .after(c1)
+        .after(c2);
 
     // render the line
-    drawLine(circlePair);
+    drawLine(c1, c2);
 
     // tell the circles who their parents are
     // circleSet.push(circlePair);
-    c1.sets.push(circlePair);
-    c2.sets.push(circlePair);
+    c1.friends.push(c2);
+    c2.friends.push(c1);
 
 }
 
@@ -162,14 +159,14 @@ var drawLine = function(c1, c2) {
     // get the line
     // TODO: instead of make a new line, 
     // access a new one from a database
-    var line = draw.line(0, 0)
-        .stroke("#555555")
-        .after(c1)
-        .after(c2)) ;
-    
-    // update line
+    var line = lines[c1 + c2];
+    if (!line) {
+        line = lines[c2 + c1];
+    }
+
     line.plot(c1.cx(), c1.cy(),
               c2.cx(), c2.cy());
+
 }
 
 // ================================
@@ -244,7 +241,8 @@ var drawBox = function () {
                   Math.min(boxStartY, cursorY))
         // SC2 style baby
             .fill("green")
-            .opacity(.3);
+            .opacity(.3)
+            .front();
         boxed = true;
     }
 }
@@ -303,6 +301,9 @@ var debug = function() {
 // INIT STUFF
 // ----------------------------------------------------------------
 
+// draw background
+background = draw.rect(width, height).fill("#eeeeee").back();
+
 // populate space
 for (var i = 0; i < numCircles; i++) {
     makeCircle(makeRandom(boundary, width - boundary),
@@ -318,9 +319,6 @@ for (var i = 0; i < circles.index(circles.last()); i++) {
     connect(c1, c2);
 }
 connect(circles.first(), circles.last());
-
-// draw background
-background = draw.rect(width, height).fill("#eeeeee").back();
 
 // ================================================================
 
