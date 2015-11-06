@@ -10,6 +10,15 @@
 // and the boundary of the screen
 var boundary = 20;
 
+// number of circles
+var numCircles = 15;
+
+// diameter of circles
+var diameter = 20;
+
+// the probability that any two circles will be connected
+var threshold = .3;
+
 // window boundaries
 // thanks to:
 // http://stackoverflow.com/questions/3437786/get-the-size-of-the-screen-current-web-page-and-browser-window
@@ -26,18 +35,6 @@ var height = Math.min(w.innerHeight,
                       e.clientHeight,
                       g.clientHeight) - boundary * 3;
 
-// will contain the background box
-var background;
-
-// number of circles
-var numCircles = 15;
-
-// diameter of circles
-var diameter = 20;
-
-// the probability that any two circles will be connected
-var threshold = .3;
-
 // my div
 var canvas = document.getElementById("drawing");
 
@@ -49,13 +46,18 @@ var border = canvas.getBoundingClientRect();
 var offsetX = border.left;
 var offsetY = border.top;
 
+// will contain the background box
+var background;
+
 // all the circles
 var circles = draw.set();
 
 // all the lines
+// indexed by circle ID's
 var lines = [];
 
 // whether each line is crossing something
+// indexed by line ID's
 var crossed = [];
 
 // ================================
@@ -236,11 +238,14 @@ var linesIntersect = function (l1, l2) {
     
 }
 
+// check if three points are oriented counterclockwise
 var CCW = function (x0, y0, x1, y1, x2, y2) {
     return 0 > Math.sign(crossProduct(x1 - x0, y1 - y0,
                                       x2 - x0, y2 - y0));
 }
 
+// fun fun vector operations
+// yay for two dimensions
 var crossProduct = function (x0, y0, x1, y1) {
     return x0 * y1 - x1 * y0;
 }
@@ -285,6 +290,9 @@ var remove = function(circle) {
             if (!selected(friend)) {
                 friend.fill("black");
             }
+            else {
+                circle.fill("blue");
+            }
         }
         
         return true;
@@ -294,10 +302,20 @@ var remove = function(circle) {
 
 // clear the selection
 var empty = function () {
-    selection.each(function (i) {
-        remove(this);
+
+    // accumulate selected circles
+    var subSelected = [];
+    selection.each(function () {
+        subSelected.push(this);
     });
-    return selection.clear();
+
+    // delete accumulation
+    for (var i in subSelected) {
+        remove(subSelected[i]);
+    }
+
+    return selection;
+    // putting return inside of each is not allowed, sadly
 }
 
 // update circle under mouse
