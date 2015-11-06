@@ -294,10 +294,20 @@ var remove = function(circle) {
 
 // clear the selection
 var empty = function () {
+
+    // accumulate selection in separate array
+    var subSelection = [];
     selection.each(function (i) {
-        remove(this);
+        subSelection.push(this);
     });
-    return selection.clear();
+
+    // remove accumulation
+    for (var i in subSelection) {
+        remove(subSelection[i]);
+    }
+
+    return selection;
+    // using remove inside of each fucks everything up
 }
 
 // update circle under mouse
