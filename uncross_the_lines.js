@@ -41,10 +41,7 @@ var numCircles = 50;
 // diameter of circles
 var diameter = 20;
 
-// the distance the mouse must travel to force a solution check
-var checkDist = 20;
-
-// a threshold that moderates how much distance is added at a time
+// the max speed for checks to occur
 var checkSpeed = 5;
 // ================================
 
@@ -89,9 +86,6 @@ var crosses;
 // the cursor position
 var cursorX = 0;
 var cursorY = 0;
-
-// the distance traveled recently
-var traveled = 0;
 
 // is shift held down?
 var shift = false;
@@ -686,20 +680,9 @@ var setGameInput = function () {
                 selection.each(function () {
                     this.fire("move");
                 });
-
                 var dist = Math.abs(cursorX - cursorXprev) + Math.abs(cursorY - cursorYprev);
-                if (dist < checkSpeed && traveled > checkDist) {
+                if (dist < checkSpeed) {
                     didWeWin();
-                    traveled = 0;
-                }
-                else if (dist > checkDist) {
-                    traveled = checkDist;
-                }
-                else if (dist > checkSpeed) {
-                    traveled += 1;
-                }
-                else {
-                    traveled += dist;
                 }
             }
             // if we're not on a circle...
