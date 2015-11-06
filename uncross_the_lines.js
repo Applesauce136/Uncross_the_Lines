@@ -36,7 +36,7 @@ var height = Math.min(w.innerHeight,
                       g.clientHeight) - boundary * 3;
 
 // number of circles
-var numCircles = 30;
+var numCircles = 50;
 
 // diameter of circles
 var diameter = 20;
@@ -77,6 +77,7 @@ var box;
 
 // STATE VARIABLES
 // --------------------------------
+
 // the cursor position
 var cursorX;
 var cursorY;
@@ -162,6 +163,7 @@ var makeCircle = function (x, y) {
     return circle;
 }
 
+// table of crossed lines
 var makeLine = function (c1, c2) {
     var line = draw
         .line(c1.cx(), c1.cy(),
@@ -172,25 +174,27 @@ var makeLine = function (c1, c2) {
         .data("start", c1.id())
         .data("end", c2.id())
         .data("crossed", false)
+        .data("selected", false)
 
         .on("move", function (e) {
             var start = SVG.get(this.data("start"));
             var end = SVG.get(this.data("end"));
             this.plot(start.cx(), start.cy(),
                       end.cx(),   end.cy());
+            this.data("selected",
+                      SVG.get(this.data("start")).data("selected") &&
+                      SVG.get(this.data("end")).data("selected"));
             this.fire("intersect");
         })
 
         .on("intersect", function (e) {
             var that = this;
             var crossed = false;
-            lines.each( function () {
-                if (linesIntersect(this, that)) {
-                    crossed = true;
-                    this.data("crossed", true);
-                }
-            });
-            this.data("crossed", crossed);
+            lines.each(function () {
+                crossed = crossed || linesIntersect(this, that);
+            })
+            this.data("crossed",
+                      crossed);
             this.fire("recolor");
         })
 
@@ -201,6 +205,9 @@ var makeLine = function (c1, c2) {
         });
 
     lines.add(line)
+    lines.each( function () {
+        this.fire("intersect");
+    });
     return line;
 }
 
@@ -342,38 +349,57 @@ var clearSelection = function (circle) {
 
 // INTERSECTION
 // --------------------------------
+
+// table of crossed lines
+var crosses = [];
 var linesIntersect = function (l1, l2) {
     // super huge thanks to:
     // http://jeffe.cs.illinois.edu/teaching/373/notes/x06-sweepline.pdf
 
-    // a bunch of accessing and terminology fixing
-    var x0, y0, x1, y1, x2, y2, x3, y3;
-    
-    x0 = l1.array().value[0][0];
-    y0 = l1.array().value[0][1];
+    var crossed;
 
-    x1 = l1.array().value[1][0];
-    y1 = l1.array().value[1][1];
+    // if both lines are in the selection or not in the selection,
+    // use the old value
+    if (crosses[l1] === undefined) {
+        crosses[l1] = [];
+    }
+    if (crosses[l1][l2] !== undefined &&
+        l1.data("selected") && l2.data("selected")) {
+        crossed = crosses[l1][l2];
+    }
+    else {
 
-    x2 = l2.array().value[0][0];
-    y2 = l2.array().value[0][1];
+        // a bunch of accessing and terminology fixing
+        var p0, x0, y0, p1, x1, y1, p2, x2, y2, p3, x3, y3;
+        
+        p0 = SVG.get(l1.data("start"));
+        x0 = p0.cx(); y0 = p0.cy();
+        
+        p1 = SVG.get(l1.data("end"));
+        x1 = p1.cx(); y1 = p1.cy(); 
 
-    x3 = l2.array().value[1][0];
-    y3 = l2.array().value[1][1];
+        p2 = SVG.get(l2.data("start"));
+        x2 = p2.cx(); y2 = p2.cy(); 
 
-    // if the lines share points, pretend they don't intersect
-    // since they're on the same circle
-    return (!samePoint(x0, y0, x2, y2) &&
-            !samePoint(x0, y0, x3, y3) &&
-            !samePoint(x1, y1, x2, y2) &&
-            !samePoint(x1, y1, x3, y3)) &&
-        // check the orientations of bunches of points
-        // see PDF linked above for details
-        // or ask a math person
-        (CCW(x0, y0, x2, y2, x3, y3) !==
-         CCW(x1, y1, x2, y2, x3, y3) &&
-         CCW(x2, y2, x0, y0, x1, y1) !==
-         CCW(x3, y3, x0, y0, x1, y1));
+        p3 = SVG.get(l2.data("end"));
+        x3 = p3.cx(); y3 = p3.cy(); 
+        
+        // if the lines share points, pretend they don't intersect
+        // since they're on the same circle
+        crossed = (!samePoint(x0, y0, x2, y2) &&
+                   !samePoint(x0, y0, x3, y3) &&
+                   !samePoint(x1, y1, x2, y2) &&
+                   !samePoint(x1, y1, x3, y3)) &&
+            // check the orientations of bunches of points
+            // see PDF linked above for details
+            // or ask a math person
+            (CCW(x0, y0, x2, y2, x3, y3) !==
+             CCW(x1, y1, x2, y2, x3, y3) &&
+             CCW(x2, y2, x0, y0, x1, y1) !==
+             CCW(x3, y3, x0, y0, x1, y1));
+    }
+    crosses[l1][l2] = crossed;
+    return crossed;
 }
 
 // check to see if two points are basically the same
@@ -443,10 +469,9 @@ var didWeWin = function () {
     // if any line is crossed, we didn't solve it
     lines.each(function () {
         this.fire("intersect");
-        if (this.data("crossed")) {
-            success = false;
-        }
+        success = success && !this.data("crossed");
     });
+    bg.fire("recolor");
 }
 
 var debug = function() {
@@ -673,9 +698,6 @@ var setGameInput = function () {
                 box.fire("redraw", {x: cursorX, y: cursorY});
             }
         }
-
-        didWeWin();
-        bg.fire("recolor");
         debug();
     }
 
@@ -705,6 +727,8 @@ var setGameInput = function () {
 
         box.hide();
 
+        didWeWin();
+
         // update state
         mouseOn = false;
         mouseDown = false;
@@ -729,5 +753,5 @@ for (var i = 0; i < numCircles; i++) {
     makeCircle(makeRandom(boundary, width - boundary),
                makeRandom(boundary, height - boundary));
 }
-popBorderOfTrianglesMax();
+popBorderOfTriangles();
 setGameInput();
