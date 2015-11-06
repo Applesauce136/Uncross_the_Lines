@@ -190,19 +190,13 @@ var makeLine = function (c1, c2) {
             this.data("active",
                       SVG.get(this.data("start")).data("selected") ||
                       SVG.get(this.data("end")).data("selected"));
-            this.fire("intersect", {recurse:true});
         })
 
         .on("intersect", function (e) {
             var that = this;
             var crossed = false;
-            var prev = crosses[this][that];
             lines.each(function () {
                 crossed = crossed || linesIntersect(this, that);
-                var curr = crosses[this][that]
-                    if (e.detail.recurse && crossed && prev !== curr) {
-                        this.fire("intersect", {recurse:false});
-                    }
             });            
             this.data("crossed", crossed);
             this.fire("recolor");
@@ -474,7 +468,7 @@ var didWeWin = function () {
     success = true;
     // if any line is crossed, we didn't solve it
     lines.each(function () {
-        this.fire("intersect", {recurse:false});
+        this.fire("intersect");
         success = success && !this.data("crossed");
     });
     bg.fire("recolor");
