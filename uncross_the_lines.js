@@ -94,6 +94,9 @@ var boxed = false;
 // HELPER FUNCTIONS
 // ----------------------------------------------------------------
 
+// ALL ABOUT CIRCLES
+// --------------------------------
+
 // make a circle, and add it to the set of all circles
 var makeCircle = function(x, y) {
     var circle = draw.circle(diameter)
@@ -107,6 +110,30 @@ var makeCircle = function(x, y) {
     return circle;
 
 }
+
+// move circle (relative to circle itself)
+var move = function(circle, dx, dy) {
+
+    var nx = circle.cx() + dx;
+    var ny = circle.cy() + dy;
+
+    // make sure the new coordinates are in bounds
+    if (inBounds(nx, ny)) {
+        circle.center(nx, ny);
+    }
+
+    // update the circle's neighbors
+    for (var i = 0; i < circle.sets.length; i++) {
+        drawLine(circle.sets[i]);
+    }
+
+    return circle;
+}
+
+// ================================
+
+// ALL ABOUT LINES
+// --------------------------------
 
 // connect two circles
 var connect = function (c1, c2) {
@@ -130,19 +157,25 @@ var connect = function (c1, c2) {
 
 }
 
-// update circle under mouse
-var updateMouseOn = function () {
-    mouseOn = false;
+var drawLine = function(c1, c2) {
 
-    // iterate through circles to see if any are clicked on
-    circles.each(function (i) {
-        if (this.inside(cursorX, cursorY)) {
-            mouseOn = this;
-            return mouseOn;
-        }
-    });
-    return mouseOn;
+    // get the line
+    // TODO: instead of make a new line, 
+    // access a new one from a database
+    var line = draw.line(0, 0)
+        .stroke("#555555")
+        .after(c1)
+        .after(c2)) ;
+    
+    // update line
+    line.plot(c1.cx(), c1.cy(),
+              c2.cx(), c2.cy());
 }
+
+// ================================
+
+// ALL ABOUT SELECTION
+// --------------------------------
 
 // if the circle is in our selection
 var selected = function(circle) {
@@ -169,37 +202,26 @@ var remove = function(circle) {
     return false;
 }
 
-// move circle (relative to circle itself)
-var move = function(circle, dx, dy) {
-
-    var nx = circle.cx() + dx;
-    var ny = circle.cy() + dy;
-
-    // make sure the new coordinates are in bounds
-    if (inBounds(nx, ny)) {
-        circle.center(nx, ny);
-    }
-
-    // update the circle's neighbors
-    for (var i = 0; i < circle.sets.length; i++) {
-        drawLine(circle.sets[i]);
-    }
-
-    return circle;
-}
-
-// check if a point is in our boundary
-var inBounds = function (x, y) {
-    return (boundary < x && x < width - boundary &&
-            boundary < y && y < height - boundary)
-}
-
 // clear the selection
 var empty = function () {
     selection.each(function (i) {
         this.fill("black");
     });
     return selection.clear();
+}
+
+// update circle under mouse
+var updateMouseOn = function () {
+    mouseOn = false;
+
+    // iterate through circles to see if any are clicked on
+    circles.each(function (i) {
+        if (this.inside(cursorX, cursorY)) {
+            mouseOn = this;
+            return mouseOn;
+        }
+    });
+    return mouseOn;
 }
 
 // draw a box based on the current mouse state
@@ -227,18 +249,6 @@ var drawBox = function () {
     }
 }
 
-var drawLine = function(circlePair) {
-
-    // extract values
-    var c1 = circlePair.get(0);
-    var c2 = circlePair.get(1);
-    var line = circlePair.get(2);
-    
-    // update line
-    line.plot(c1.cx(), c1.cy(),
-              c2.cx(), c2.cy());
-}
-
 var bboxIntersect = function (shape1, shape2) {
 
     // extract values
@@ -258,10 +268,23 @@ var bboxIntersect = function (shape1, shape2) {
     );
 }
 
+// ================================
+
+// ALL ABOUT NUMBERS
+// --------------------------------
+
+// check if a point is in our boundary
+var inBounds = function (x, y) {
+    return (boundary < x && x < width - boundary &&
+            boundary < y && y < height - boundary)
+}
+
 // random number between min and max
 var makeRandom = function (min, max) {
     return min + (max - min) * Math.random();
 }
+
+// ================================
 
 var debug = function() {
     console.log("cursorX:   " + cursorX + "\n" +
