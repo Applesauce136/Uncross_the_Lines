@@ -190,19 +190,13 @@ var makeLine = function (c1, c2) {
             this.data("active",
                       SVG.get(this.data("start")).data("selected") ||
                       SVG.get(this.data("end")).data("selected"));
-            //this.fire("intersect", {recurse:true});
         })
 
         .on("intersect", function (e) {
             var that = this;
             var crossed = false;
-            // var prev = crosses[this][that];
             lines.each(function () {
                 crossed = crossed || linesIntersect(this, that);
-                // var curr = crosses[this][that]
-                // if (e.detail.recurse && crossed && prev !== curr) {
-                //     this.fire("intersect", {recurse:false});
-                // }
             });            
             this.data("crossed", crossed);
             this.fire("recolor");
@@ -663,6 +657,7 @@ var setGameInput = function () {
     }
 
     // while the mouse is held down
+    var count = 0;
     document.onmousemove = function (e) {
 
         // save old position
@@ -673,6 +668,7 @@ var setGameInput = function () {
         cursorX = e.pageX - offsetX;
         cursorY = e.pageY - offsetY;
 
+        count++;
         // if we're clicking on something...
         if (mouseDown) {
             // if we're on a circle
@@ -686,6 +682,11 @@ var setGameInput = function () {
                 selection.each(function () {
                     this.fire("move");
                 });
+
+                if (count === 10) {
+                    didWeWin();
+                    count = 0;
+                }
             }
             // if we're not on a circle...
             else {
@@ -704,7 +705,6 @@ var setGameInput = function () {
                 });
                 box.fire("redraw", {x: cursorX, y: cursorY});
             }
-            didWeWin();
         }
         debug();
     }
