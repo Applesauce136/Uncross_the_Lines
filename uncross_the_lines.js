@@ -30,7 +30,7 @@ var height = Math.min(w.innerHeight,
 var background;
 
 // number of circles
-var numCircles = 7;
+var numCircles = 10;
 
 // diameter of circles
 var diameter = 20;
@@ -460,12 +460,6 @@ var setGameInput = function () {
         if (key === 16) {
             shift = true;
         }
-        else if (selection.length() >= 2 && key === 65) {
-            connect(selection.first(), selection.last());
-        }
-        else if (selection.length() >= 2 && key === 68) {
-            disconnect(selection.first(), selection.last());
-        }
     }
 
     document.onkeyup = function (e) {
@@ -600,6 +594,103 @@ var setGameInput = function () {
 // ================================
 // ================================================================
 
+// POPULATION ALGORITHMS
+// ----------------------------------------------------------------
+
+// Border
+// creates a border
+// SOLVABLE
+// --------------------------------
+var popBorder = function () {
+    for (var i = 0; i < numCircles; i += 1) {
+
+        var c1 = circles.get((i  ) % numCircles);
+        var c2 = circles.get((i+1) % numCircles);
+
+        connect(c1, c2);
+    }
+}
+// ================================
+
+// Max Edges
+// creates edges randomly up to a cap
+// NOT SOLVABLE
+// --------------------------------
+var popMaxEdges = function () {
+    var cap = 3 * (numCircles - 2)
+    var added;
+    for (var edges = 0; edges < cap; added ? edges++ : edges) {
+
+        added = false;
+
+        var c1 = circles.get(Math.floor(makeRandom(0, numCircles)));
+        var c2 = circles.get(Math.floor(makeRandom(0, numCircles)));
+
+        if (c1 !== c2 &&
+            !connected(c1, c2)) {
+
+            connect(c1, c2);
+            added = true;
+        }
+    }
+}
+// ================================
+
+// Border of Triangles
+// --------------------------------
+// Border of Triangles
+// creates a border, as well as a triangle every two nodes
+// SOLVABLE
+var popBorderOfTriangles = function () {
+    popBorderOfTrianglesHelper(circles);
+}
+
+// Border of Triangles Iterated
+// creates a border, as well as a triangle every two nodes,
+// and another layer of triangles
+// SOLVABLE
+var popBorderOfTrianglesIterated = function () {
+    popBorderOfTrianglesHelper(popBorderOfTrianglesHelper(circles));
+}
+
+// Border of Triangles Iterated
+// creates a border, as well as a triangle every two nodes,
+// and as many layers of triangles as will fit
+// SOLVABLE
+var popBorderOfTrianglesMax = function () {
+    popBorderOfTrianglesMaxHelper(circles);
+}
+
+// Helper Functions
+var popBorderOfTrianglesMaxHelper = function (raw_circles) {
+    var newCircles = popBorderOfTrianglesHelper(raw_circles);
+    if (newCircles.length() >= 3) {
+        popBorderOfTrianglesMaxHelper(newCircles);
+    }
+}
+
+var popBorderOfTrianglesHelper = function (raw_circles) {
+
+    var innerCircles = draw.set();
+    var iters = raw_circles.length() - (raw_circles.length() % 2);
+    for (var i = 0; i < iters; i += 2) {
+
+        var c1 = raw_circles.get((i  ) % raw_circles.length());
+        var c2 = raw_circles.get((i+1) % raw_circles.length());
+        var c3 = raw_circles.get((i+2) % raw_circles.length());
+
+        connect(c1, c2);
+        connect(c2, c3);
+        connect(c1, c3);
+
+        innerCircles.add(c2);
+    }
+    return innerCircles;
+}
+// ================================
+
+// ================================================================
+
 // INIT STUFF
 // ----------------------------------------------------------------
 
@@ -612,35 +703,7 @@ for (var i = 0; i < numCircles; i++) {
                makeRandom(boundary, height - boundary));
 }
 
-// create pairs
-for (var i = 0; i < numCircles - 2; i += 2) {
-
-    var c1 = circles.get(i);
-    var c2 = circles.get(i + 1);
-    var c3 = circles.get(i + 2);
-
-    connect(c1, c2);
-    connect(c2, c3);
-    connect(c1, c3);
-}
-connect(circles.first(), circles.last());
-
-// var added;
-// for (var edges = 0; edges < 3 * (numCircles - 2); added ? edges++ : edges) {
-
-//     added = false;
-
-//     var c1 = circles.get(Math.floor(makeRandom(0, numCircles)));
-//     var c2 = circles.get(Math.floor(makeRandom(0, numCircles)));
-
-//     if (c1 !== c2 &&
-//         !connected(c1, c2)) {
-
-//         connect(c1, c2);
-//         added = true;
-//     }
-// }
-
+popBorderOfTrianglesMax();
 setGameInput();
 // ================================================================
 // max edges in a graph = n(n-1)/2
