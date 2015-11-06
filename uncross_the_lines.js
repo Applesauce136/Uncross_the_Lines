@@ -201,7 +201,6 @@ var makeLine = function (c1, c2) {
                 crossed = crossed || linesIntersect(this, that);
                 var curr = crosses[this][that]
                     if (e.detail.recurse && crossed && prev !== curr) {
-                        console.log("recursing");
                         this.fire("intersect", {recurse:false});
                     }
             });            
@@ -370,9 +369,7 @@ var linesIntersect = function (l1, l2) {
         crossed = false;
     }
     else if (crosses[l1][l2] !== undefined &&
-        (l1.data("selected") && l2.data("selected"))//  ||
-        // (!l1.data("active") && !l2.data("active"))
-       ) {
+        (l1.data("selected") && l2.data("selected"))) {
         crossed = crosses[l1][l2];
     }
     else {
