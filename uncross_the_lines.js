@@ -103,9 +103,6 @@ var success = false;
 // HELPER FUNCTIONS
 // ----------------------------------------------------------------
 
-// ALL ABOUT CIRCLES
-// --------------------------------
-
 // make a circle, and add it to the set of all circles
 var makeCircle = function(x, y) {
 
@@ -144,11 +141,6 @@ var move = function(circle, dx, dy) {
 
     return circle;
 }
-
-// ================================
-
-// ALL ABOUT LINES
-// --------------------------------
 
 // connect two circles
 var connect = function (c1, c2) {
@@ -288,48 +280,6 @@ var recolorLines = function () {
     }
 }
 
-// check if two lines intersect
-// super huge thanks to:
-// http://jeffe.cs.illinois.edu/teaching/373/notes/x06-sweepline.pdf
-var linesIntersect = function (l1, l2) {
-
-    // only check if bboxes intersect
-    if (bboxIntersect(l1, l2)) {
-
-        // a bunch of accessing and terminology fixing
-        var x0, y0, x1, y1, x2, y2, x3, y3;
-        
-        x0 = l1.array().value[0][0];
-        y0 = l1.array().value[0][1];
-
-        x1 = l1.array().value[1][0];
-        y1 = l1.array().value[1][1];
-
-        x2 = l2.array().value[0][0];
-        y2 = l2.array().value[0][1];
-
-        x3 = l2.array().value[1][0];
-        y3 = l2.array().value[1][1];
-
-        // if the lines share points, pretend they don't intersect
-        // since they're on the same circle
-        return (!samePoint(x0, y0, x2, y2) &&
-                !samePoint(x0, y0, x3, y3) &&
-                !samePoint(x1, y1, x2, y2) &&
-                !samePoint(x1, y1, x3, y3)) &&
-            // check the orientations of bunches of points
-            // see PDF linked above for details
-            // or ask a math person
-            (CCW(x0, y0, x2, y2, x3, y3) !==
-             CCW(x1, y1, x2, y2, x3, y3) &&
-             CCW(x2, y2, x0, y0, x1, y1) !==
-             CCW(x3, y3, x0, y0, x1, y1));
-    }
-    else {
-        return false;
-    }
-}
-
 // check to see if two points are basically the same
 var samePoint = function (x0, y0, x1, y1) {
     return (Math.abs(x0 - x1) < diameter / 100 &&
@@ -362,10 +312,6 @@ var didWeWin = function () {
     // remember, rgb
     background.fill( success ? "#eeffee" : "#ffeeee" );
 }
-// ================================
-
-// ALL ABOUT SELECTION
-// --------------------------------
 
 // if the circle is in our selection
 var selected = function(circle) {
@@ -476,6 +422,41 @@ var drawBox = function () {
     }
 }
 
+// check if two lines intersect
+// super huge thanks to:
+// http://jeffe.cs.illinois.edu/teaching/373/notes/x06-sweepline.pdf
+var linesIntersect = function (l1, l2) {
+
+    // a bunch of accessing and terminology fixing
+    var x0, y0, x1, y1, x2, y2, x3, y3;
+    
+    x0 = l1.array().value[0][0];
+    y0 = l1.array().value[0][1];
+
+    x1 = l1.array().value[1][0];
+    y1 = l1.array().value[1][1];
+
+    x2 = l2.array().value[0][0];
+    y2 = l2.array().value[0][1];
+
+    x3 = l2.array().value[1][0];
+    y3 = l2.array().value[1][1];
+
+    // if the lines share points, pretend they don't intersect
+    // since they're on the same circle
+    return (!samePoint(x0, y0, x2, y2) &&
+            !samePoint(x0, y0, x3, y3) &&
+            !samePoint(x1, y1, x2, y2) &&
+            !samePoint(x1, y1, x3, y3)) &&
+        // check the orientations of bunches of points
+        // see PDF linked above for details
+        // or ask a math person
+        (CCW(x0, y0, x2, y2, x3, y3) !==
+         CCW(x1, y1, x2, y2, x3, y3) &&
+         CCW(x2, y2, x0, y0, x1, y1) !==
+         CCW(x3, y3, x0, y0, x1, y1));
+}
+
 var bboxIntersect = function (shape1, shape2) {
 
     // extract values, for corners
@@ -494,11 +475,6 @@ var bboxIntersect = function (shape1, shape2) {
             shape2.inside(b1.x2, b1.y2)
     );
 }
-
-// ================================
-
-// ALL ABOUT NUMBERS
-// --------------------------------
 
 // check if a point is in our boundary
 var inBounds = function (x, y) {
@@ -524,8 +500,6 @@ var between= function (a, b, c) {
 var makeRandom = function (min, max) {
     return min + (max - min) * Math.random();
 }
-
-// ================================
 
 var debug = function() {
     console.log("cursorX:   " + cursorX + "\n" +
@@ -636,7 +610,7 @@ var setGameInput = function () {
                 drawBox();
             }
         }
-
+        checkAllLines();
         //debug();
     }
 
@@ -796,13 +770,15 @@ var popBorderOfTrianglesHelper = function (raw_circles) {
 // draw background
 background = draw.rect(width, height).fill("#ffeeee").back();
 
-// populate space
-for (var i = 0; i < numCircles; i++) {
-    makeCircle(makeRandom(boundary, width - boundary),
-               makeRandom(boundary, height - boundary));
-}
+var c1 = makeCircle(100, 100);
+var c2 = makeCircle(100, 200);
+var c3 = makeCircle(200, 100);
+var c4 = makeCircle(200, 200);
 
-popBorderOfTrianglesMax();
+connect(c1, c2);
+connect(c3, c4);
+
+// popBorderOfTrianglesMax();
 checkAllLines();
 recolorLines();
 setGameInput();
