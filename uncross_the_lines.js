@@ -177,6 +177,7 @@ var makeLine = function (c1, c2) {
         .data("end", c2.id())
         .data("crossed", false)
         .data("selected", false)
+        .data("active", false)
 
         .on("move", function (e) {
             var start = SVG.get(this.data("start"));
@@ -196,13 +197,15 @@ var makeLine = function (c1, c2) {
             var that = this;
             var crossed = false;
             lines.each(function () {
-                crossed = crossed || linesIntersect(this, that);
-                if (e.detail.recurse && crossed) {
-                    this.fire("intersect", {recurse:false});
+                if (that !== this) {
+                    crossed = crossed || linesIntersect(this, that);
+                    if (e.detail.recurse && crossed) {
+                        this.fire("intersect", {recurse:false});
+                    }
                 }
-            })
-            this.data("crossed",
-                      crossed);
+            }
+                      );            
+            this.data("crossed", crossed);
             this.fire("recolor");
         })
 
