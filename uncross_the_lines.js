@@ -371,7 +371,7 @@ document.onmousemove = function (e) {
     // if we're clicking on something...
     if (mouseDown) {
         // moving condition
-        if (!shift && mouseOn) {
+        if (mouseOn) {
 
             moved = true;
 
@@ -383,7 +383,7 @@ document.onmousemove = function (e) {
             });
         }
         // if we're not mousing over anything...
-        else if (!mouseOn) {
+        else {
             drawBox();
         }
     }
