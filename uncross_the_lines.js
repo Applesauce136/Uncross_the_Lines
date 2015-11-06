@@ -78,6 +78,9 @@ var box;
 // STATE VARIABLES
 // --------------------------------
 
+// a table of all the lines and whether they're crossed
+var crosses;
+
 // the cursor position
 var cursorX;
 var cursorY;
@@ -163,7 +166,6 @@ var makeCircle = function (x, y) {
     return circle;
 }
 
-// table of crossed lines
 var makeLine = function (c1, c2) {
     var line = draw
         .line(c1.cx(), c1.cy(),
@@ -184,14 +186,22 @@ var makeLine = function (c1, c2) {
             this.data("selected",
                       SVG.get(this.data("start")).data("selected") &&
                       SVG.get(this.data("end")).data("selected"));
-            this.fire("intersect");
+            this.data("active",
+                      SVG.get(this.data("start")).data("selected") ||
+                      SVG.get(this.data("end")).data("selected"));
+            this.fire("intersect", {recurse:true});
         })
 
         .on("intersect", function (e) {
             var that = this;
             var crossed = false;
             lines.each(function () {
-                crossed = crossed || linesIntersect(this, that);
+                if (!crossed && linesIntersect(this, that)) {
+                    crossed = true;
+                }
+                if (e.detail.recurse) {
+                    this.fire("intersect", {recurse:false});
+                }
             })
             this.data("crossed",
                       crossed);
@@ -205,9 +215,6 @@ var makeLine = function (c1, c2) {
         });
 
     lines.add(line)
-    lines.each( function () {
-        this.fire("intersect");
-    });
     return line;
 }
 
@@ -350,8 +357,6 @@ var clearSelection = function (circle) {
 // INTERSECTION
 // --------------------------------
 
-// table of crossed lines
-var crosses = [];
 var linesIntersect = function (l1, l2) {
     // super huge thanks to:
     // http://jeffe.cs.illinois.edu/teaching/373/notes/x06-sweepline.pdf
@@ -360,11 +365,10 @@ var linesIntersect = function (l1, l2) {
 
     // if both lines are in the selection or not in the selection,
     // use the old value
-    if (crosses[l1] === undefined) {
-        crosses[l1] = [];
-    }
     if (crosses[l1][l2] !== undefined &&
-        l1.data("selected") && l2.data("selected")) {
+        (l1.data("selected") && l2.data("selected"))//  ||
+        // (!l1.data("active") && !l2.data("active"))
+       ) {
         crossed = crosses[l1][l2];
     }
     else {
@@ -419,11 +423,11 @@ var crossProduct = function (x0, y0, x1, y1) {
     return x0 * y1 - x1 * y0;
 }
 
-var bboxIntersect = function (shape1, shape2) {
+var tboxIntersect = function (shape1, shape2) {
 
     // extract values, for corners
-    var b1 = shape1.bbox();
-    var b2 = shape2.bbox();
+    var b1 = shape1.tbox();
+    var b2 = shape2.tbox();
     
     // check each corner
     return (shape1.inside(b2.x , b2.y) ||
@@ -468,7 +472,7 @@ var didWeWin = function () {
     success = true;
     // if any line is crossed, we didn't solve it
     lines.each(function () {
-        this.fire("intersect");
+        this.fire("intersect", {recurse:false});
         success = success && !this.data("crossed");
     });
     bg.fire("recolor");
@@ -691,7 +695,7 @@ var setGameInput = function () {
                 }
                 // add boxed circles to selection
                 circles.each(function () {
-                    if (bboxIntersect(this, box)) {
+                    if (tboxIntersect(this, box)) {
                         select(this);
                     }
                 });
@@ -753,5 +757,13 @@ for (var i = 0; i < numCircles; i++) {
     makeCircle(makeRandom(boundary, width - boundary),
                makeRandom(boundary, height - boundary));
 }
+
 popBorderOfTriangles();
+
+crosses = [];
+lines.each(function () {
+    crosses[this] = [];
+});
+didWeWin();
+
 setGameInput();
