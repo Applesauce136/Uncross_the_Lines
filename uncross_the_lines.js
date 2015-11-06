@@ -6,6 +6,10 @@
 // CONSTANTS
 // --------------------------------
 
+// the minimum distance between a circle's starting position
+// and the boundary of the screen
+var boundary = 20;
+
 // window boundaries
 // thanks to:
 // http://stackoverflow.com/questions/3437786/get-the-size-of-the-screen-current-web-page-and-browser-window
@@ -14,13 +18,13 @@ var d = document;
 var e = d.documentElement;
 var g = d.getElementsByTagName('body')[0];
 
-// the minimum distance between a circle's starting position
-// and the boundary of the screen
-var boundary = 20;
-
 // dimensions
-var width = Math.min(w.innerWidth, e.clientWidth, g.clientWidth) - boundary * 3;
-var height = Math.min(w.innerHeight, e.clientHeight, g.clientHeight) - boundary * 3;
+var width = Math.min(w.innerWidth,
+                     e.clientWidth,
+                     g.clientWidth) - boundary * 3;
+var height = Math.min(w.innerHeight,
+                      e.clientHeight,
+                      g.clientHeight) - boundary * 3;
 
 // will contain the background box
 var background;
@@ -50,6 +54,9 @@ var circles = draw.set();
 
 // all the lines
 var lines = [];
+
+// whether each line is crossing something
+var crossed = [];
 
 // ================================
 
@@ -86,6 +93,9 @@ var recent = false;
 
 // was the last mousedown a box?
 var boxed = false;
+
+// did we win?
+var success = false;
 
 // ================================
 // ================================================================
@@ -138,35 +148,101 @@ var move = function(circle, dx, dy) {
 // connect two circles
 var connect = function (c1, c2) {
 
-    lines[c1 + c2] = draw.line(c1.cx(), c1.cy(),
-                               c2.cx(), c2.cy())
+    var line =  draw.line(c1.cx(), c1.cy(),
+                          c2.cx(), c2.cy())
         .stroke("#555555")
         .after(c1)
         .after(c2);
+    lines[c1 + c2] = line;
+    crossed[line] = true;
 
     // render the line
     drawLine(c1, c2);
 
-    // tell the circles who their parents are
-    // circleSet.push(circlePair);
+    // tell the circles who their friends are
     c1.friends.push(c2);
     c2.friends.push(c1);
 
 }
 
+// draw line between two circles
 var drawLine = function(c1, c2) {
 
     // get the line
-    // TODO: instead of make a new line, 
-    // access a new one from a database
     var line = lines[c1 + c2];
     if (!line) {
         line = lines[c2 + c1];
     }
 
+    // update its coordinates
     line.plot(c1.cx(), c1.cy(),
               c2.cx(), c2.cy());
 
+    for (var i in lines) {
+
+        var line1 = lines[i];
+        crossed[line1] = false;
+
+        for (var j in lines) {
+
+            var line2 = lines[j]
+
+            if (linesIntersect(line1, line2)) {
+                crossed[line1] = true;
+                break;
+            }
+        }
+    }
+
+    for (var i in lines) {
+        lines[i].stroke( crossed[lines[i]] ? "red" : "green" );
+    }
+}
+
+// check if lines intersect
+// super huge thanks to:
+// http://jeffe.cs.illinois.edu/teaching/373/notes/x06-sweepline.pdf
+var linesIntersect = function (l1, l2) {
+
+    var x0, y0, x1, y1, x2, y2, x3, y3;
+    
+    x0 = l1.array().value[0][0];
+    y0 = l1.array().value[0][1];
+
+    x1 = l1.array().value[1][0];
+    y1 = l1.array().value[1][1];
+
+    x2 = l2.array().value[0][0];
+    y2 = l2.array().value[0][1];
+
+    x3 = l2.array().value[1][0];
+    y3 = l2.array().value[1][1];
+
+    var samePoint = function (x0, y0, x1, y1) {
+        return (Math.abs(x0 - x1) < diameter / 1000 &&
+                Math.abs(y0 - y1) < diameter / 1000);
+    }
+
+    // share endpoint test
+    return (!samePoint(x0, y0, x2, y2) &&
+            !samePoint(x0, y0, x3, y3) &&
+            !samePoint(x1, y1, x2, y2) &&
+            !samePoint(x1, y1, x3, y3)) &&
+        // counterclockwise test
+        (CCW(x0, y0, x2, y2, x3, y3) !==
+         CCW(x1, y1, x2, y2, x3, y3) &&
+         CCW(x2, y2, x0, y0, x1, y1) !==
+         CCW(x3, y3, x0, y0, x1, y1));
+    
+}
+
+var CCW = function (x0, y0, x1, y1, x2, y2) {
+    return 0 > Math.sign(crossProduct(x1 - x0, y1 - y0,
+                                      x2 - x0, y2 - y0));
+}
+
+var crossProduct = function (x0, y0, x1, y1) {
+    return x0 * y1 - x1 * y0;
 }
 
 // ================================
@@ -302,7 +378,7 @@ var debug = function() {
 // ----------------------------------------------------------------
 
 // draw background
-background = draw.rect(width, height).fill("#eeeeee").back();
+background = draw.rect(width, height).fill("#ffeeee").back();
 
 // populate space
 for (var i = 0; i < numCircles; i++) {
@@ -447,6 +523,15 @@ document.onmouseup = function (e) {
     else {
         empty();
     }
+
+    success = true;
+    for (var i in crossed) {
+        if (crossed[i]) {
+            success = false;
+            break;
+        }
+    }
+    background.fill( success ? "#eeffee" : "#ffeeee" );
 
     // update state
     mouseOn = false;
