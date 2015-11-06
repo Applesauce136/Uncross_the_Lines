@@ -246,12 +246,12 @@ var drawLine = function(c1, c2) {
               c2.cx(), c2.cy());
 
     // update all the lines
-    checkAllLines();
+    checkLine(line, true);
     recolorLines();
 }
 
 // check all the lines
-// runtime is a little scary!
+// runtime is ~n^4, a little scary!
 var checkAllLines = function () {
 
     // for all our lines
@@ -261,7 +261,9 @@ var checkAllLines = function () {
 }
 
 // check to see if a line intersects any lines
-var checkLine = function (line) {
+// if recurse is true, 
+var checkLine = function (line, recurse) {
+    recurse = typeof recurse !== undefined? recurse : false;
 
     crossed[line] = false;
     // for all our lines
@@ -270,9 +272,15 @@ var checkLine = function (line) {
 
         if (linesIntersect(line, line2)) {
             crossed[line] = true;
+            crossed[line2] = true;
+            recolorLines();
             return true;
         }
+        else if (recurse) {
+            checkLine(line2, false);
+        }
     }
+    recolorLines();
     return false;
 }
 
@@ -803,6 +811,7 @@ for (var i = 0; i < numCircles; i++) {
 }
 
 popBorderOfTrianglesMax();
+checkAllLines();
 setGameInput();
 // ================================================================
 // max edges in a graph = n(n-1)/2
