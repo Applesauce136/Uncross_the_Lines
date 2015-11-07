@@ -123,7 +123,7 @@ var success = false;
 // CREATORS
 // --------------------------------
 var makeCircle = function (x, y) {
-    var circle = draw
+    return circles
         .circle(diameter)
         .fill("black")
         .center(x, y)
@@ -169,18 +169,13 @@ var makeCircle = function (x, y) {
                 SVG.get(id).fire("move");
             });
         });
-
-    circles.add(circle);
-    return circle;
 }
 
 var makeLine = function (c1, c2) {
-    var line = draw
+    return lines
         .line(c1.cx(), c1.cy(),
               c2.cx(), c2.cy())
         .stroke("red")
-        .after(c1)
-        .after(c2)
         .data("start", c1.id())
         .data("end", c2.id())
         .data("crossed", false)
@@ -215,9 +210,6 @@ var makeLine = function (c1, c2) {
                          "red" :
                          "green");
         });
-
-    lines.add(line)
-    return line;
 }
 
 var makeBox = function () {
@@ -443,7 +435,7 @@ var tboxIntersect = function (shape1, shape2) {
             shape2.inside(b1.x , b1.y2) ||
             shape2.inside(b1.x2, b1.y) ||
             shape2.inside(b1.x2, b1.y2)
-    );
+           );
 }
 // ================================
 
@@ -500,65 +492,87 @@ var debug = function() {
 
 // POPULATION ALGORITHMS
 // ----------------------------------------------------------------
+var types = {
 
-// Border
-// creates a border
-// SOLVABLE
-// --------------------------------
-var popBorder = function () {
-    circles.each(function (i, children) {
-        makeFriends(this, children[(i+1) % numCircles]);
-    });
-}
-// ================================
+    // Border
+    // creates a border
+    // SOLVABLE
+    // --------------------------------
+    border: function () {
+        circles.each(function (i, children) {
+            makeFriends(this, children[(i+1) % numCircles]);
+        });
+    },
+    // ================================
 
-// Max Edges
-// creates edges randomly up to a cap
-// NOT SOLVABLE
-// --------------------------------
-var popMaxEdges = function () {
-    var cap = 3 * (numCircles - 2)
-    var added;
-    for (var edges = 0; edges < cap; added ? edges++ : edges) {
+    // Max Edges
+    // creates edges randomly up to a cap
+    // NOT SOLVABLE
+    // --------------------------------
+    maxEdges: function () {
+        var cap = 3 * (numCircles - 2)
+        var added;
+        for (var edges = 0; edges < cap; added ? edges++ : edges) {
 
-        added = false;
+            added = false;
 
-        var c1 = circles.get(Math.floor(makeRandom(0, numCircles)));
-        var c2 = circles.get(Math.floor(makeRandom(0, numCircles)));
+            var c1 = circles.get(Math.floor(makeRandom(0, numCircles)));
+            var c2 = circles.get(Math.floor(makeRandom(0, numCircles)));
 
-        if (c1 !== c2 &&
-            !areFriends(c1, c2)) {
+            if (c1 !== c2 &&
+                !areFriends(c1, c2)) {
 
-            makeFriends(c1, c2);
-            added = true;
+                makeFriends(c1, c2);
+                added = true;
+            }
         }
+    },
+    // ================================
+
+    // Border of Triangles
+    // --------------------------------
+    // Border of Triangles
+    // creates a border, as well as a triangle every two nodes
+    // SOLVABLE
+    borderOfTriangles: function () {
+        popBorderOfTrianglesHelper(circleSet());
+    },
+
+    // Border of Triangles Iterated
+    // creates a border, as well as a triangle every two nodes,
+    // and another layer of triangles
+    // SOLVABLE
+    borderOfTrianglesIterated: function () {
+        popBorderOfTrianglesHelper(popBorderOfTrianglesHelper(circleSet()));
+    },
+
+    // Border of Triangles Iterated
+    // creates a border, as well as a triangle every two nodes,
+    // and as many layers of triangles as will fit
+    // SOLVABLE
+    borderOfTrianglesMax: function () {
+        popBorderOfTrianglesMaxHelper(circleSet());
     }
-}
-// ================================
 
-// Border of Triangles
-// --------------------------------
-// Border of Triangles
-// creates a border, as well as a triangle every two nodes
-// SOLVABLE
-var popBorderOfTriangles = function () {
-    popBorderOfTrianglesHelper(circles);
-}
+};
 
-// Border of Triangles Iterated
-// creates a border, as well as a triangle every two nodes,
-// and another layer of triangles
-// SOLVABLE
-var popBorderOfTrianglesIterated = function () {
-    popBorderOfTrianglesHelper(popBorderOfTrianglesHelper(circles));
-}
+var populate = function (type) {
+    circles.clear();
+    lines.clear();
 
-// Border of Triangles Iterated
-// creates a border, as well as a triangle every two nodes,
-// and as many layers of triangles as will fit
-// SOLVABLE
-var popBorderOfTrianglesMax = function () {
-    popBorderOfTrianglesMaxHelper(circles);
+    for (var i = 0; i < numCircles; i++) {
+        makeCircle(makeRandom(boundary, width - boundary),
+                   makeRandom(boundary, height - boundary));
+    }
+
+    if (type in types) {
+        types[type]();
+    }
+
+    crosses = [];
+    lines.each(function () {
+        crosses[this] = [];
+    });
 }
 
 // Helper Functions
@@ -572,12 +586,13 @@ var popBorderOfTrianglesMaxHelper = function (raw_circles) {
 var popBorderOfTrianglesHelper = function (raw_circles) {
 
     var innerCircles = draw.set();
-    var iters = raw_circles.length() - (raw_circles.length() % 2);
+    var length = raw_circles.length();
+    var iters = length - (length % 2);
     for (var i = 0; i < iters; i += 2) {
 
-        var c1 = raw_circles.get((i  ) % raw_circles.length());
-        var c2 = raw_circles.get((i+1) % raw_circles.length());
-        var c3 = raw_circles.get((i+2) % raw_circles.length());
+        var c1 = raw_circles.get((i  ) % length);
+        var c2 = raw_circles.get((i+1) % length);
+        var c3 = raw_circles.get((i+2) % length);
 
         makeFriends(c1, c2);
         makeFriends(c2, c3);
@@ -588,7 +603,15 @@ var popBorderOfTrianglesHelper = function (raw_circles) {
     return innerCircles;
 }
 
-// ================================
+// get a set of all of our cirlces,
+// as opposed to a group
+var circleSet = function () {
+    var set = draw.set();
+    circles.each(function () {
+        set.add(this);
+    });
+    return set;
+}
 
 // ================================================================
 // INPUT PROCESSING
@@ -758,24 +781,14 @@ var setGameInput = function () {
 // ================================
 // ================================================================
 
-circles = draw.set();
-lines = draw.set();
+circles = draw.group();
+lines = draw.group().after(circles);
 selection = draw.set();
 
 box = makeBox();
 bg = makeBG();
 
-for (var i = 0; i < numCircles; i++) {
-    makeCircle(makeRandom(boundary, width - boundary),
-               makeRandom(boundary, height - boundary));
-}
+populate("borderOfTriangles");
 
-popBorderOfTriangles();
-
-crosses = [];
-lines.each(function () {
-    crosses[this] = [];
-});
 didWeWin();
-
 setGameInput();
