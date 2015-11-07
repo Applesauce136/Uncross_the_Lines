@@ -86,6 +86,9 @@ var box;
 // a table of all the lines and whether they're crossed
 var crosses;
 
+// the type of population algorithm we're using
+var type = "border";
+
 // the cursor position
 var cursorX = 0;
 var cursorY = 0;
@@ -492,6 +495,28 @@ var debug = function() {
 
 // POPULATION ALGORITHMS
 // ----------------------------------------------------------------
+
+var populate = function () {
+    circles.clear();
+    lines.clear();
+
+    for (var i = 0; i < numCircles; i++) {
+        makeCircle(makeRandom(boundary, width - boundary),
+                   makeRandom(boundary, height - boundary));
+    }
+
+    if (type in types) {
+        types[type]();
+    }
+
+    crosses = [];
+    lines.each(function () {
+        crosses[this] = [];
+    });
+
+    didWeWin();
+}
+
 var types = {
 
     // Border
@@ -555,25 +580,6 @@ var types = {
     }
 
 };
-
-var populate = function (type) {
-    circles.clear();
-    lines.clear();
-
-    for (var i = 0; i < numCircles; i++) {
-        makeCircle(makeRandom(boundary, width - boundary),
-                   makeRandom(boundary, height - boundary));
-    }
-
-    if (type in types) {
-        types[type]();
-    }
-
-    crosses = [];
-    lines.each(function () {
-        crosses[this] = [];
-    });
-}
 
 // Helper Functions
 var popBorderOfTrianglesMaxHelper = function (raw_circles) {
@@ -788,7 +794,25 @@ selection = draw.set();
 box = makeBox();
 bg = makeBG();
 
-populate("borderOfTriangles");
+var typeField = document.getElementById("pop");
+var nodesField = document.getElementById("nodes");
 
-didWeWin();
+var button = document.getElementById("reset");
+
+button.addEventListener("click",
+                        function () {
+                            
+                            var newType = typeField.value;
+                            type = newType in types ? newType : type;
+                            
+                            var newNodes = parseInt(nodesField.value); 
+                            numCircles = isNaN(newNodes) ? numCircles : newNodes;
+                            
+                            populate();
+                            typeField.value = type;
+                            nodesField.value = numCircles;
+                        });
+
+button.dispatchEvent(new MouseEvent("click"));
+
 setGameInput();
