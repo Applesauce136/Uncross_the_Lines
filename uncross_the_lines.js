@@ -17,23 +17,11 @@ var debugging = false;
 
 // the minimum distance between a circle's starting position
 // and the boundary of the screen
-var boundary = 20;
+var buffer = 20;
 
-// window boundaries
-// thanks to:
-// http://stackoverflow.com/questions/3437786/get-the-size-of-the-screen-current-web-page-and-browser-window
-var w = window;
-var d = document;
-var e = d.documentElement;
-var g = d.getElementsByTagName('body')[0];
-
-// dimensions
-var width = Math.min(w.innerWidth,
-                     e.clientWidth,
-                     g.clientWidth) - boundary * 3;
-var height = Math.min(w.innerHeight,
-                      e.clientHeight,
-                      g.clientHeight) - boundary * 3;
+// dimensions of window
+var width;
+var height;
 
 // number of circles
 var numCircles = 30;
@@ -51,15 +39,21 @@ var checkDist = 2;
 // SVG GENERAL
 // --------------------------------
 // my div
-var canvas = document.getElementById("drawing");
+
+// input places
+var typeField;
+var nodesField;
+var button;
+
+var canvas;
 
 // the SVG object
-var draw = SVG("drawing").size(width, height);
+var draw
 
 // offset of SVG canvas, for mouse purposes
-var border = canvas.getBoundingClientRect();
-var offsetX = border.left;
-var offsetY = border.top;
+var border;
+var offsetX;
+var offsetY;
 // ================================
 
 // SVG MINE
@@ -120,7 +114,36 @@ var success = false;
 // ================================
 // ================================================================
 
-// HELPER FUNCTIONS
+var makeWindow = function () {
+
+    // window boundaries
+    // thanks to:
+    // http://stackoverflow.com/questions/3437786/get-the-size-of-the-screen-current-web-page-and-browser-window
+    var w = window;
+    var d = document;
+    var e = d.documentElement;
+    var g = d.getElementsByTagName('body')[0];
+
+    width = Math.min(w.innerWidth,
+                     e.clientWidth,
+                     g.clientWidth) - buffer * 3;
+    height = Math.min(w.innerHeight,
+                      e.clientHeight,
+                      g.clientHeight) - buffer * 3;
+
+    if (draw !== undefined) {
+        draw.remove();
+    }
+
+    canvas = document.getElementById("drawing");
+    draw = SVG(canvas).size(width, height);
+
+    border = canvas.getBoundingClientRect();
+    offsetX = border.left;
+    offsetY = border.top;
+}
+
+// FUNCTIONS
 // ----------------------------------------------------------------
 
 // CREATORS
@@ -295,7 +318,7 @@ var makeFriends = function (c1, c2) {
 
 var breakUp = function (c1, c2) {
 
-    // if they're alreayd friends
+    // if they're already friends
     if (areFriends(c1, c2)) {
         
         // find the line between them
@@ -450,11 +473,11 @@ var inBounds = function (x, y) {
 }
 
 var inBoundsX = function (x) {
-    return between(boundary, x, width - boundary);
+    return between(buffer, x, width - buffer);
 }
 
 var inBoundsY = function (y) {
-    return between(boundary, y, height - boundary);
+    return between(buffer, y, height - buffer);
 }
 
 var between= function (a, b, c) {
@@ -501,8 +524,8 @@ var populate = function () {
     lines.clear();
 
     for (var i = 0; i < numCircles; i++) {
-        makeCircle(makeRandom(boundary, width - boundary),
-                   makeRandom(boundary, height - boundary));
+        makeCircle(makeRandom(buffer, width - buffer),
+                   makeRandom(buffer, height - buffer));
     }
 
     if (type in types) {
@@ -787,21 +810,21 @@ var setGameInput = function () {
 // ================================
 // ================================================================
 
-circles = draw.group();
-lines = draw.group().after(circles);
-selection = draw.set();
-
-box = makeBox();
-bg = makeBG();
-
-var typeField = document.getElementById("pop");
-var nodesField = document.getElementById("nodes");
-
-var button = document.getElementById("reset");
+typeField = document.getElementById("pop");
+nodesField = document.getElementById("nodes");
+button = document.getElementById("reset");
 
 button.addEventListener("click",
                         function () {
-                            
+                            makeWindow()
+
+                            circles = draw.group();
+                            lines = draw.group().after(circles);
+                            selection = draw.set();
+
+                            box = makeBox();
+                            bg = makeBG();
+
                             var newType = typeField.value;
                             type = newType in types ? newType : type;
                             
@@ -811,8 +834,7 @@ button.addEventListener("click",
                             populate();
                             typeField.value = type;
                             nodesField.value = numCircles;
+                            setGameInput();
                         });
 
 button.dispatchEvent(new MouseEvent("click"));
-
-setGameInput();
