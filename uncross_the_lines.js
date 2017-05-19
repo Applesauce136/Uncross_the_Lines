@@ -820,7 +820,7 @@ var setGameInput = function () {
 button = document.getElementById("reset");
 
 var start = function () {
-    makeWindow()
+    makeWindow();
 
     circles = draw.group();
     lines = draw.group().after(circles);
@@ -841,5 +841,5 @@ var start = function () {
     setGameInput();
 }
 
-button.addEventListener("click", start());
+button.addEventListener("click", function () { start(); });
 button.dispatchEvent(new MouseEvent("click"));
