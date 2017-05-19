@@ -734,9 +734,14 @@ var setGameInput = function () {
                 moved = true;
 
                 // move all the circles in our selection
-                selection.dmove(cursorX - cursorXprev, cursorY - cursorYprev);
+		var dx = cursorX - cursorXprev;
+		var dy = cursorY - cursorYprev;
                 selection.each(function () {
-                    this.fire("move");
+		    if (inBounds(this.cx() + dx,
+				 this.cy() + dy)) {
+			this.dmove(dx, dy);
+			this.fire("move");
+		    }
                 });
                 var dist = Math.abs(cursorX - cursorXprev) + Math.abs(cursorY - cursorYprev);
                 if (dist < checkSpeed) {
