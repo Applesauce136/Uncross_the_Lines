@@ -30,10 +30,13 @@ var numCircles = 50;
 var diameter = 40;
 
 // the max speed for checks to occur
-var checkSpeed = 5;
+var checkSpeed = 7;
+
+// the distance traveled by the mouse
+var dist = 0;
 
 // the distance that must be traversed to check again
-var checkDist = 2;
+var checkDist = 10;
 // ================================
 
 // SVG GENERAL
@@ -389,7 +392,7 @@ var linesIntersect = function (l1, l2) {
         crossed = false;
     }
     else if (crosses[l1][l2] !== undefined &&
-        (l1.data("selected") && l2.data("selected"))) {
+             (l1.data("selected") && l2.data("selected"))) {
         crossed = crosses[l1][l2];
     }
     else {
@@ -696,17 +699,19 @@ var setGameInput = function () {
             }
         });
 
-        // if we're clicking on something new
-        if (mouseOn && !mouseOn.data("selected")) {
+        // if we're clicking on something
+        if (mouseOn) {
+	    // if we're clicking on something new
+	    if (!mouseOn.data("selected")) {
+		// clear and add, or shift-add
+		if (!shift) {
+                    clearSelection();
+		};
+		select(mouseOn);
 
-            // clear and add, or shift-add
-            if (!shift) {
-                clearSelection();
-            };
-            select(mouseOn);
-
-            // tell state that the circle was just added
-            recent = true;
+		// tell state that the circle was just added
+		recent = true;
+	    }
         }
 
         // in case we're boxing
@@ -743,34 +748,44 @@ var setGameInput = function () {
 			this.fire("move");
 		    }
                 });
-                var dist = Math.abs(cursorX - cursorXprev) + Math.abs(cursorY - cursorYprev);
-                if (dist < checkSpeed) {
-                    if ( traveled > checkDist) {
-                        didWeWin();
-                        traveled = 0;
-                    }
-                    else {
-                        traveled += dist;
-                    }
-                }
-            }
-            // if we're not on a circle...
-            else {
+
+		// check to see if we should recheck based on our speed
+		dist = dx*dx+ dy*dy;
+
+		// if the moue is moving slowly...
+		if (dist < checkSpeed) {
+		    // begin accumulating distance traveled
+		    traveled += dist;
+
+		    // and when the threshold is reached, check and increase threshold
+		    if (traveled > checkDist) {
+			didWeWin();
+			traveled = 0;
+			checkDist *= 3;
+		    }
+		}
+		// if we moved fast, reset the threshold
+		else {
+		    checkDist = 20;
+		}
+	    }
+	    // if we're not on a circle...
+	    else {
 
                 boxed = true;
 
                 // clear selection if we're not adding to it
                 if (!shift && !moved) {
-                    clearSelection();
+		    clearSelection();
                 }
                 // add boxed circles to selection
                 circles.each(function () {
-                    if (tboxIntersect(this, box)) {
+		    if (tboxIntersect(this, box)) {
                         select(this);
-                    }
+		    }
                 });
                 box.fire("redraw", {x: cursorX, y: cursorY});
-            }
+	    }
         }
         debug();
     }
@@ -780,23 +795,23 @@ var setGameInput = function () {
 
         // if we clicked on something...
         if (mouseOn) {
-            // if we didn't move and we're not shift-adding, clear the selection
-            if (!shift && !moved) {
+	    // if we didn't move and we're not shift-adding, clear the selection
+	    if (!shift && !moved) {
                 clearSelection();
-            }
+	    }
 
-            // if we're shift-clicking something selected, remove it
-            if (shift && mouseOn.data("selected") && !moved && !recent) {
+	    // if we're shift-clicking something selected, remove it
+	    if (shift && mouseOn.data("selected") && !moved && !recent) {
                 deselect(mouseOn);
-            }
-            // otherwise, add the thing we clicked on
-            else {
+	    }
+	    // otherwise, add the thing we clicked on
+	    else {
                 select(mouseOn);
-            }
+	    }
         }
         // if we clicked in space, empty the selection
         else if (!boxed) {
-            clearSelection();
+	    clearSelection();
         }
 
         box.hide();
