@@ -27,7 +27,7 @@ var height;
 var numCircles = 30;
 
 // diameter of circles
-var diameter = 20;
+var diameter = 40;
 
 // the max speed for checks to occur
 var checkSpeed = 5;
@@ -41,14 +41,14 @@ var checkDist = 2;
 // my div
 
 // input places
-var typeField;
-var nodesField;
+// var typeField;
+// var nodesField;
 var button;
 
 var canvas;
 
 // the SVG object
-var draw
+var draw;
 
 // offset of SVG canvas, for mouse purposes
 var border;
@@ -810,31 +810,31 @@ var setGameInput = function () {
 // ================================
 // ================================================================
 
-typeField = document.getElementById("pop");
-nodesField = document.getElementById("nodes");
+// typeField = document.getElementById("pop");
+// nodesField = document.getElementById("nodes");
 button = document.getElementById("reset");
 
-button.addEventListener("click",
-                        function () {
-                            makeWindow()
+var start = function () {
+    makeWindow()
 
-                            circles = draw.group();
-                            lines = draw.group().after(circles);
-                            selection = draw.set();
+    circles = draw.group();
+    lines = draw.group().after(circles);
+    selection = draw.set();
 
-                            box = makeBox();
-                            bg = makeBG();
+    box = makeBox();
+    bg = makeBG();
 
-                            var newType = typeField.value;
-                            type = newType in types ? newType : type;
-                            
-                            var newNodes = parseInt(nodesField.value); 
-                            numCircles = isNaN(newNodes) ? numCircles : newNodes;
-                            
-                            populate();
-                            typeField.value = type;
-                            nodesField.value = numCircles;
-                            setGameInput();
-                        });
+    // var newType = typeField.value;
+    // type = newType in types ? newType : type;
+    
+    // var newNodes = parseInt(nodesField.value); 
+    // numCircles = isNaN(newNodes) ? numCircles : newNodes;
+    
+    populate();
+    // typeField.value = type;
+    // nodesField.value = numCircles;
+    setGameInput();
+}
 
+button.addEventListener("click", start());
 button.dispatchEvent(new MouseEvent("click"));
