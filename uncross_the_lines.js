@@ -81,7 +81,7 @@ var box;
 var crosses;
 
 // the type of population algorithm we're using
-var type = "border";
+var type = "borderOfTrianglesIterated";
 
 // the cursor position
 var cursorX = 0;
