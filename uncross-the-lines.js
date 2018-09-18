@@ -24,7 +24,7 @@ var width;
 var height;
 
 // number of circles
-var numCircles = 10;
+var numCircles = 20;
 
 // diameter of circles
 var diameter = 40;
