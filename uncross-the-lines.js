@@ -24,19 +24,11 @@ var width;
 var height;
 
 // number of circles
-var numCircles = 30;
+var numCircles = 10;
 
 // diameter of circles
 var diameter = 40;
 
-// the max speed for checks to occur
-var checkSpeed = 7;
-
-// the distance traveled by the mouse
-var dist = 0;
-
-// the distance that must be traversed to check again
-var checkDist = 10;
 // ================================
 
 // SVG GENERAL
@@ -749,25 +741,6 @@ var setGameInput = function () {
 		    }
                 });
 
-		// check to see if we should recheck based on our speed
-		dist = dx*dx+ dy*dy;
-
-		// if the moue is moving slowly...
-		if (dist < checkSpeed) {
-		    // begin accumulating distance traveled
-		    traveled += dist;
-
-		    // and when the threshold is reached, check and increase threshold
-		    if (traveled > checkDist) {
-			didWeWin();
-			traveled = 0;
-			checkDist *= 3;
-		    }
-		}
-		// if we moved fast, reset the threshold
-		else {
-		    checkDist = 20;
-		}
 	    }
 	    // if we're not on a circle...
 	    else {
