@@ -820,7 +820,7 @@ var start = function () {
     // var newType = typeField.value;
     // type = newType in types ? newType : type;
     
-    var newNodes = parseInt(nodesField.value); 
+    var newNodes = parseInt(nodesField.value, 10); 
     numCircles = isNaN(newNodes) ? numCircles : newNodes;
     
     populate();
