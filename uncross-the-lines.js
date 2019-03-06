@@ -1,4 +1,3 @@
-
 "use strict";
 
 Array.prototype.myRemove = function (item) {
@@ -444,8 +443,8 @@ var crossProduct = function (x0, y0, x1, y1) {
 var tboxIntersect = function (shape1, shape2) {
 
     // extract values, for corners
-    var b1 = shape1.tbox();
-    var b2 = shape2.tbox();
+    var b1 = shape1.rbox();
+    var b2 = shape2.rbox();
     
     // check each corner
     return (shape1.inside(b2.x , b2.y) ||
