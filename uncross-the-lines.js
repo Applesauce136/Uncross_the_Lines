@@ -1,3 +1,4 @@
+
 "use strict";
 
 Array.prototype.myRemove = function (item) {
@@ -37,7 +38,7 @@ var diameter = 40;
 
 // input places
 // var typeField;
-// var nodesField;
+var nodesField;
 var button;
 
 var canvas;
@@ -804,7 +805,7 @@ var setGameInput = function () {
 // ================================================================
 
 // typeField = document.getElementById("pop");
-// nodesField = document.getElementById("nodes");
+nodesField = document.getElementById("nodes");
 button = document.getElementById("reset");
 
 var start = function () {
@@ -820,12 +821,12 @@ var start = function () {
     // var newType = typeField.value;
     // type = newType in types ? newType : type;
     
-    // var newNodes = parseInt(nodesField.value); 
-    // numCircles = isNaN(newNodes) ? numCircles : newNodes;
+    var newNodes = parseInt(nodesField.value); 
+    numCircles = isNaN(newNodes) ? numCircles : newNodes;
     
     populate();
     // typeField.value = type;
-    // nodesField.value = numCircles;
+    nodesField.value = numCircles;
     setGameInput();
 }
 
